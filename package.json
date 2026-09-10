@@ -1,0 +1,32 @@
+{
+  "name": "yk-academic-search",
+  "version": "1.0.0",
+  "description": "Codex skill package and direct CLI helpers for YK academic literature search.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xxx1099836595/yk-academic-skill.git"
+  },
+  "bin": {
+    "yk-academic-search": "./bin/yk-academic-search.mjs"
+  },
+  "files": [
+    ".codex-plugin/**",
+    "bin/**",
+    "skills/**",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "node ./bin/yk-academic-search.mjs --help"
+  },
+  "keywords": [
+    "codex-skill",
+    "cli",
+    "academic-search",
+    "literature-search"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

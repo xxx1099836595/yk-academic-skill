@@ -1,0 +1,34 @@
+{
+  "name": "yk-academic-search",
+  "version": "1.0.0",
+  "description": "Search academic literature and generate full-text download links through direct CLI scripts.",
+  "author": {
+    "name": "YK"
+  },
+  "repository": "https://github.com/xxx1099836595/yk-academic-skill",
+  "license": "MIT",
+  "keywords": [
+    "academic-search",
+    "literature-search",
+    "journal-search",
+    "cli"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "YK Academic Search",
+    "shortDescription": "CLI academic literature search and full-text link generation.",
+    "longDescription": "Provides a Codex skill and Node CLI scripts for searching academic literature with structured filters and generating full-text download links.",
+    "developerName": "YK",
+    "category": "Productivity",
+    "capabilities": [
+      "Search",
+      "CLI"
+    ],
+    "defaultPrompt": [
+      "Search recent papers about multimodal large models.",
+      "Find highly cited papers from 2024.",
+      "Generate a full-text download link."
+    ],
+    "brandColor": "#2563EB"
+  }
+}
