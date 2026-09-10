@@ -13,6 +13,14 @@ YK 学术文献检索 Skill 包，包含：
 npx skills add https://github.com/xxx1099836595/yk-academic-skill/tree/main/skills/yk-academic-search
 ```
 
+也可以从仓库根目录识别：
+
+```bash
+npx skills add https://github.com/xxx1099836595/yk-academic-skill --skill yk-academic-search -y --full-depth
+```
+
+不要把这个仓库用作 Codex marketplace root。Marketplace 安装需要单独的 `marketplace.json` 目录结构；本仓库是 Skill/Plugin 包。
+
 如果按 Codex plugin 方式安装，插件入口在 `.codex-plugin/plugin.json`，会声明 Skill 和命令行脚本用法。
 
 ## 本地测试安装
