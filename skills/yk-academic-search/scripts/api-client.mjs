@@ -14,9 +14,9 @@ export function printHelp() {
   console.log(`yk-academic-search
 
 Usage:
-  yk-academic-search search --query <text>
-  yk-academic-search search --conditions '<json-array>' [--page-index 1] [--page-size 20]
-  yk-academic-search fulltext --filepath <path> [--file-type local] [--day 3]
+  yk-academic-search search --query <text> [query options]
+  yk-academic-search search --conditions '<json-array>' [structured options]
+  yk-academic-search fulltext --filepath <path> [full-text options]
 
 Environment:
   YK_ACADEMIC_API_KEY    Required API key used for Authorization: Bearer <key>
@@ -26,9 +26,19 @@ Options:
   --api-base <url>     Backend base URL. Defaults to YK_ACADEMIC_API_BASE or ${DEFAULT_API_BASE}
   --query <text>       Natural-language search text
   --conditions <json>  Structured condition node array
+  --size <number>      Natural-language result count, default 15, range 1-50
+  --database <name>    Natural-language database, chinese or english; default chinese
+  --start-year <year>  Natural-language lower year bound; default current year - 5
+  --end-year <year>    Natural-language upper year bound; default current year
+  --page-index <n>     Structured page number starting at 1; default 1
+  --page-size <n>      Structured page size, range 1-100; default 20
   --sort-field <name>  score, cited_count, publish_date, or year
-  --sort-order <name>  asc or desc
+  --sort-order <name>  asc or desc; default desc
   --filepath <path>    Backend local/OSS file path for full-text link generation
+  --file-type <type>   local, oss, book, or dic; default local
+  --day <number>       Full-text URL validity in days; default 3
+  --domain-type <n>    Backend domain type; default 1
+  --title <text>       Optional title embedded in the download URL
 `);
 }
 

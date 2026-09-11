@@ -106,4 +106,6 @@ set YK_ACADEMIC_API_BASE=http://192.168.45.252:8610
 
 Key 会作为 `Authorization: Bearer <key>` 请求头发送给后端。检索限额应由后端或网关统一控制；Skill 和 CLI 不再通过 MCP 做本地计数。
 
+参数与请求体完整说明：[`skills/yk-academic-search/references/api.md`](skills/yk-academic-search/references/api.md)
+
 API 文档：<https://claude.newacademic.net/docs/>

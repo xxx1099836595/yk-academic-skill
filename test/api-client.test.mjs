@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { generateFullTextLink, parseArgs, searchLiterature } from "../skills/yk-academic-search/scripts/api-client.mjs";
+import {
+  generateFullTextLink,
+  parseArgs,
+  printHelp,
+  searchLiterature
+} from "../skills/yk-academic-search/scripts/api-client.mjs";
 
 const originalApiKey = process.env.YK_ACADEMIC_API_KEY;
 const originalFetch = globalThis.fetch;
@@ -57,4 +62,82 @@ test("command-line API keys are rejected", () => {
     () => parseArgs(["search", "--query", "人工智能", "--api-key", "11223344"]),
     /只能通过环境变量 YK_ACADEMIC_API_KEY 设置/
   );
+});
+
+test("all documented structured-search options are mapped to the backend payload", async () => {
+  process.env.YK_ACADEMIC_API_KEY = "test-key";
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ code: 0, data: { total: 0, list: [] } })
+    };
+  };
+
+  const parsed = parseArgs([
+    "search",
+    "--conditions",
+    "[{\"action\":\"condition\",\"exp\":{\"field\":\"year\",\"symbol\":\">=\",\"value\":2024}}]",
+    "--page-index",
+    "2",
+    "--page-size",
+    "50",
+    "--sort-field",
+    "cited_count",
+    "--sort-order",
+    "asc",
+    "--api-base",
+    "http://example.test/"
+  ]);
+
+  await searchLiterature(parsed);
+
+  assert.equal(request.url, "http://example.test/literature/v2/tradition/search");
+  assert.equal(request.options.headers.authorization, "Bearer test-key");
+  assert.deepEqual(JSON.parse(request.options.body), {
+    pageIndex: 2,
+    pageSize: 50,
+    sort: { field: "cited_count", order: "asc" },
+    conditions: [
+      {
+        action: "condition",
+        exp: { field: "year", symbol: ">=", value: 2024 }
+      }
+    ]
+  });
+});
+
+test("help documents every CLI parameter group", () => {
+  const output = [];
+  const originalLog = console.log;
+  console.log = (message) => output.push(message);
+  try {
+    printHelp();
+  } finally {
+    console.log = originalLog;
+  }
+
+  const help = output.join("\n");
+  for (const option of [
+    "--api-base",
+    "--query",
+    "--conditions",
+    "--size",
+    "--database",
+    "--start-year",
+    "--end-year",
+    "--page-index",
+    "--page-size",
+    "--sort-field",
+    "--sort-order",
+    "--filepath",
+    "--file-type",
+    "--day",
+    "--domain-type",
+    "--title"
+  ]) {
+    assert.match(help, new RegExp(option.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
 });
