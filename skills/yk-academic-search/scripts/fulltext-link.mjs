@@ -2,9 +2,8 @@
 
 import { generateFullTextLink, parseArgs, printResult } from "./api-client.mjs";
 
-const parsed = parseArgs(process.argv.slice(2));
-
 try {
+  const parsed = parseArgs(process.argv.slice(2));
   const result = await generateFullTextLink(parsed);
   printResult(result);
 } catch (error) {

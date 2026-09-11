@@ -8,15 +8,15 @@ import {
   searchLiterature
 } from "../skills/yk-academic-search/scripts/api-client.mjs";
 
-const parsed = parseArgs(process.argv.slice(2));
-const command = parsed._[0];
-
-if (!command || parsed.help || parsed.h) {
-  printHelp();
-  process.exit(0);
-}
-
 try {
+  const parsed = parseArgs(process.argv.slice(2));
+  const command = parsed._[0];
+
+  if (!command || parsed.help || parsed.h) {
+    printHelp();
+    process.exit(0);
+  }
+
   if (command === "search") {
     const result = await searchLiterature(parsed);
     printResult(result);

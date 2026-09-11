@@ -7,7 +7,27 @@ description: Use when the user asks to search, filter, compare, or retrieve acad
 
 Use the package's Node CLI scripts for academic literature retrieval. Do not call an MCP tool for this skill. The CLI calls the YK backend directly at `http://192.168.45.252:8610` unless `YK_ACADEMIC_API_BASE` or `--api-base` overrides it.
 
-Read the Key from `YK_ACADEMIC_API_KEY` by default. Use `--api-key` only for a one-off override. The CLI forwards the Key as `Authorization: Bearer <key>`.
+Read the API Key only from the `YK_ACADEMIC_API_KEY` environment variable. Never ask the user to put a Key in a command argument, a Skill file, or source code. The CLI forwards the Key as `Authorization: Bearer <key>`.
+
+Before running either command, check that `YK_ACADEMIC_API_KEY` is set. If it is missing, stop and show this setup message:
+
+```text
+请您先设置秘钥（YK_ACADEMIC_API_KEY）。
+
+Windows PowerShell:
+  $env:YK_ACADEMIC_API_KEY="你的秘钥"
+
+Windows CMD:
+  set YK_ACADEMIC_API_KEY=你的秘钥
+
+Linux:
+  export YK_ACADEMIC_API_KEY="你的秘钥"
+
+macOS:
+  export YK_ACADEMIC_API_KEY="你的秘钥"
+```
+
+After the user sets the variable, ask them to rerun the command. Do not make a network request while the Key is missing. API documentation: <https://claude.newacademic.net/docs/>.
 
 ## Choose the tool
 
@@ -100,7 +120,7 @@ node scripts/search.mjs --query "多模态大模型"
 node scripts/fulltext-link.mjs --filepath "/path/to/paper.pdf"
 ```
 
-Set `YK_ACADEMIC_API_KEY` before running the scripts. Set `YK_ACADEMIC_API_BASE` when the backend endpoint is not `http://192.168.45.252:8610`.
+Set `YK_ACADEMIC_API_KEY` before running the scripts. The CLI does not accept a `--api-key` option. Set `YK_ACADEMIC_API_BASE` when the backend endpoint is not `http://192.168.45.252:8610`.
 
 ## Error handling
 

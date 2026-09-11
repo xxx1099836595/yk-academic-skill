@@ -24,7 +24,6 @@ Environment:
 
 Options:
   --api-base <url>     Backend base URL. Defaults to YK_ACADEMIC_API_BASE or ${DEFAULT_API_BASE}
-  --api-key <key>      One-off API key override. Prefer YK_ACADEMIC_API_KEY
   --query <text>       Natural-language search text
   --conditions <json>  Structured condition node array
   --sort-field <name>  score, cited_count, publish_date, or year
@@ -42,6 +41,9 @@ export function parseArgs(argv) {
       continue;
     }
     const key = toCamelCase(token.slice(2));
+    if (key === "apiKey") {
+      throw new Error("API Key 只能通过环境变量 YK_ACADEMIC_API_KEY 设置，请勿通过命令行参数传入。");
+    }
     const next = argv[index + 1];
     if (!next || next.startsWith("--")) {
       result[key] = true;
@@ -182,14 +184,14 @@ async function traditionalSearch(args, parsed) {
 
 async function postJson(path, payload, parsed) {
   const base = String(parsed.apiBase || process.env.YK_ACADEMIC_API_BASE || DEFAULT_API_BASE).replace(/\/+$/, "");
-  const apiKey = String(parsed.apiKey || process.env.YK_ACADEMIC_API_KEY || "");
+  const apiKey = requireApiKey();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   try {
-    const headers = { "content-type": "application/json" };
-    if (apiKey) {
-      headers.authorization = `Bearer ${apiKey}`;
-    }
+    const headers = {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`
+    };
     const response = await fetch(`${base}${path}`, {
       method: "POST",
       headers,
@@ -204,6 +206,28 @@ async function postJson(path, payload, parsed) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function requireApiKey() {
+  const apiKey = String(process.env.YK_ACADEMIC_API_KEY || "").trim();
+  if (!apiKey) {
+    throw new Error(`请您先设置秘钥（YK_ACADEMIC_API_KEY）。
+
+Windows PowerShell:
+  $env:YK_ACADEMIC_API_KEY="你的秘钥"
+
+Windows CMD:
+  set YK_ACADEMIC_API_KEY=你的秘钥
+
+Linux:
+  export YK_ACADEMIC_API_KEY="你的秘钥"
+
+macOS:
+  export YK_ACADEMIC_API_KEY="你的秘钥"
+
+设置完成后，请重新打开终端或重新运行命令。`);
+  }
+  return apiKey;
 }
 
 function normalizeListResponse(body) {

@@ -59,13 +59,39 @@ npx skills remove yk-academic-search -y
 
 ## CLI 调用
 
-Skill 使用命令行脚本直接调用后端接口，不调用 MCP。
+Skill 使用命令行脚本直接调用后端接口，不调用 MCP。秘钥只从环境变量
+`YK_ACADEMIC_API_KEY` 读取，不会把秘钥写入 Skill 文件、命令历史或命令行参数。
 
-推荐先配置环境变量：
+### 配置秘钥
+
+Windows PowerShell：
+
+```powershell
+$env:YK_ACADEMIC_API_KEY="你的秘钥"
+```
+
+Windows CMD：
+
+```cmd
+set YK_ACADEMIC_API_KEY=你的秘钥
+```
+
+Linux：
 
 ```bash
-set YK_ACADEMIC_API_KEY=11223344
+export YK_ACADEMIC_API_KEY="你的秘钥"
 ```
+
+macOS：
+
+```bash
+export YK_ACADEMIC_API_KEY="你的秘钥"
+```
+
+也可以把 `export` 命令写入 Linux/macOS 的 shell 配置文件（例如 `~/.bashrc` 或
+`~/.zshrc`），然后重新打开终端。PowerShell 使用 `$env:` 设置的值只对当前终端窗口及其子进程生效。
+
+未设置秘钥时，CLI 会在本地提示配置方法，并且不会请求后端。
 
 ```bash
 npx yk-academic-search search --query "多模态大模型"
@@ -78,4 +104,6 @@ npx yk-academic-search fulltext --filepath "/path/to/paper.pdf"
 set YK_ACADEMIC_API_BASE=http://192.168.45.252:8610
 ```
 
-CLI 默认读取 `YK_ACADEMIC_API_KEY`，也支持用 `--api-key` 临时覆盖。Key 会作为 `Authorization: Bearer <key>` 请求头发送给后端。检索限额应由后端或网关统一控制；Skill 和 CLI 不再通过 MCP 做本地计数。
+Key 会作为 `Authorization: Bearer <key>` 请求头发送给后端。检索限额应由后端或网关统一控制；Skill 和 CLI 不再通过 MCP 做本地计数。
+
+API 文档：<https://claude.newacademic.net/docs/>

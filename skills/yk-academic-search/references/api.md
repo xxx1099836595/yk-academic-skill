@@ -7,7 +7,26 @@ http://192.168.45.252:8610
 ```
 
 Override with `YK_ACADEMIC_API_BASE` or `--api-base`.
-Set `YK_ACADEMIC_API_KEY` for authentication; use `--api-key` only when overriding it for one command.
+Set `YK_ACADEMIC_API_KEY` for authentication. The API Key is environment-only; there is no `--api-key` command-line option.
+
+If the variable is missing, stop locally and ask the user to configure it:
+
+```powershell
+# Windows PowerShell
+$env:YK_ACADEMIC_API_KEY="你的秘钥"
+```
+
+```cmd
+:: Windows CMD
+set YK_ACADEMIC_API_KEY=你的秘钥
+```
+
+```bash
+# Linux or macOS
+export YK_ACADEMIC_API_KEY="你的秘钥"
+```
+
+API 文档：<https://claude.newacademic.net/docs/>.
 
 ## CLI commands
 

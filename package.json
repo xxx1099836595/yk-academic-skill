@@ -17,7 +17,8 @@
     "README.md"
   ],
   "scripts": {
-    "check": "node ./bin/yk-academic-search.mjs --help"
+    "check": "node ./bin/yk-academic-search.mjs --help",
+    "test": "node --test"
   },
   "keywords": [
     "codex-skill",
