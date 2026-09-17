@@ -1,14 +1,15 @@
 {
-  "name": "yk-academic-search",
+  "name": "yk-academic-search-mcp",
   "version": "1.0.0",
-  "description": "Codex skill package and direct CLI helpers for YK academic literature search.",
+  "description": "Local stdio MCP server, Codex Skill, and CLI helpers for YK academic literature search.",
   "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xxx1099836595/yk-academic-skill.git"
   },
   "bin": {
-    "yk-academic-search": "./bin/yk-academic-search.mjs"
+    "yk-academic-search": "./bin/yk-academic-search.mjs",
+    "yk-academic-search-mcp": "./bin/yk-academic-search-mcp.mjs"
   },
   "files": [
     ".codex-plugin/**",
@@ -22,6 +23,8 @@
   },
   "keywords": [
     "codex-skill",
+    "mcp",
+    "stdio",
     "cli",
     "academic-search",
     "literature-search"
@@ -29,5 +32,8 @@
   "license": "MIT",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
   }
 }

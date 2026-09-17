@@ -1,11 +1,75 @@
-# yk-academic-search
+# yk-academic-search-mcp
 
 YK 学术文献检索 Skill 包，包含：
 
 - Codex Skill：`skills/yk-academic-search/SKILL.md`
 - Node CLI：`yk-academic-search`
+- MCP stdio 包：`yk-academic-search-mcp`
 
 ## 安装
+
+### 本地 MCP 安装
+
+这是本地 `stdio` MCP 服务，不监听 IP 和端口，也不需要配置 MCP URL。未发布 npm 时，直接让 `npx` 使用本地包目录：
+
+```json
+{
+  "mcpServers": {
+    "ykAcademicSearch": {
+      "command": "npx",
+      "args": [
+        "--yes",
+        "--package",
+        "D:\\py\\deepagent-services\\mcp-servers\\yk-academic-search",
+        "yk-academic-search-mcp"
+      ],
+      "env": {
+        "YK_ACADEMIC_API_KEY": "你的Key"
+      }
+    }
+  }
+}
+```
+
+如果以后发布到 npm，配置才使用包名：
+
+```json
+{
+  "mcpServers": {
+    "ykAcademicSearch": {
+      "command": "npx",
+      "args": ["-y", "yk-academic-search-mcp"],
+      "env": {
+        "YK_ACADEMIC_API_KEY": "你的Key"
+      }
+    }
+  }
+}
+```
+
+服务只暴露两个工具：
+
+- `literature_search`
+- `download_full_text`
+
+MCP 服务本身不使用 Nacos。默认后端地址由包内部使用
+`http://192.168.45.252:8610`；如确实需要切换后端，可额外设置
+`YK_ACADEMIC_API_BASE`，但它不是 MCP 服务地址。
+
+在本地仓库测试 npx 启动，不需要发布到 npm：
+
+```powershell
+cd D:\py\deepagent-services\mcp-servers\yk-academic-search
+npm install
+npx --yes --package . yk-academic-search-mcp
+```
+
+也可以先打包，再用本地 tarball 测试：
+
+```powershell
+npm pack
+npx --yes --package .\yk-academic-search-mcp-1.0.0.tgz yk-academic-search-mcp
+```
 
 发布到 GitHub 后，可按 Skill CLI 的 GitHub 安装方式安装：
 
@@ -94,8 +158,8 @@ export YK_ACADEMIC_API_KEY="你的秘钥"
 未设置秘钥时，CLI 会在本地提示配置方法，并且不会请求后端。
 
 ```bash
-npx yk-academic-search search --query "多模态大模型"
-npx yk-academic-search fulltext --filepath "/path/to/paper.pdf"
+node bin/yk-academic-search.mjs search --query "多模态大模型"
+node bin/yk-academic-search.mjs fulltext --filepath "/path/to/paper.pdf"
 ```
 
 默认后端地址是 `http://192.168.45.252:8610`。也可以覆盖：
