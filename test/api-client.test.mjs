@@ -2,16 +2,20 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  DEFAULT_API_KEY,
   generateFullTextLink,
   parseArgs,
   printHelp,
-  searchLiterature
+  searchLiterature,
+  setDefaultApiKey
 } from "../skills/yk-academic-search/scripts/api-client.mjs";
 
 const originalApiKey = process.env.YK_ACADEMIC_API_KEY;
 const originalFetch = globalThis.fetch;
+const originalDefaultApiKey = DEFAULT_API_KEY;
 
-test.after(() => {
+test.afterEach(() => {
+  setDefaultApiKey(originalDefaultApiKey);
   if (originalApiKey === undefined) {
     delete process.env.YK_ACADEMIC_API_KEY;
   } else {
@@ -20,8 +24,9 @@ test.after(() => {
   globalThis.fetch = originalFetch;
 });
 
-test("search stops locally with setup instructions when the API key is missing", async () => {
+test("search stops locally with setup instructions when no API key is available", async () => {
   delete process.env.YK_ACADEMIC_API_KEY;
+  setDefaultApiKey("");
   let fetchCalls = 0;
   globalThis.fetch = async () => {
     fetchCalls += 1;
@@ -42,8 +47,27 @@ test("search stops locally with setup instructions when the API key is missing",
   assert.equal(fetchCalls, 0);
 });
 
-test("full-text link generation also requires the environment API key", async () => {
+test("search uses default API key when YK_ACADEMIC_API_KEY is not set", async () => {
   delete process.env.YK_ACADEMIC_API_KEY;
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ code: 0, data: { total: 0, list: [] } })
+    };
+  };
+
+  await searchLiterature({ conditions: "[]" });
+  assert.equal(request.options.headers.authorization, `Bearer ${DEFAULT_API_KEY}`);
+  assert.equal(request.options.headers["accept"], "*/*");
+  assert.equal(request.options.headers["accept-encoding"], "gzip, deflate, br");
+});
+
+test("full-text link generation requires an API key when default is not available", async () => {
+  delete process.env.YK_ACADEMIC_API_KEY;
+  setDefaultApiKey("");
   let fetchCalls = 0;
   globalThis.fetch = async () => {
     fetchCalls += 1;
@@ -94,8 +118,11 @@ test("all documented structured-search options are mapped to the backend payload
 
   await searchLiterature(parsed);
 
-  assert.equal(request.url, "http://example.test/literature/v2/tradition/search");
+  assert.equal(request.url, "http://example.test/research/literature/v2/tradition/search");
   assert.equal(request.options.headers.authorization, "Bearer test-key");
+  assert.equal(request.options.headers["content-type"], "application/json");
+  assert.equal(request.options.headers["accept"], "*/*");
+  assert.equal(request.options.headers["accept-encoding"], "gzip, deflate, br");
   assert.deepEqual(JSON.parse(request.options.body), {
     pageIndex: 2,
     pageSize: 50,
@@ -107,6 +134,64 @@ test("all documented structured-search options are mapped to the backend payload
       }
     ]
   });
+});
+
+test("natural language query is mapped to traditional search conditions", async () => {
+  process.env.YK_ACADEMIC_API_KEY = "test-key";
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        code: 0,
+        data: {
+          total: 1,
+          list: [
+            {
+              originalTitle: "测试标题",
+              originalAbstract: "测试摘要",
+              originalKeywords: ["测试"],
+              authors: [{ name: "作者" }],
+              container: { title: "期刊" }
+            }
+          ]
+        }
+      })
+    };
+  };
+
+  const parsed = parseArgs([
+    "search",
+    "--query",
+    "多模态大模型",
+    "--size",
+    "10",
+    "--database",
+    "chinese",
+    "--start-year",
+    "2022",
+    "--end-year",
+    "2025"
+  ]);
+
+  const result = await searchLiterature(parsed);
+  assert.equal(request.url, "http://192.168.30.155:8099/research/literature/v2/tradition/search");
+  assert.equal(Array.isArray(result), true);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].title, "测试标题");
+  assert.equal(result[0].abstract, "测试摘要");
+  assert.deepEqual(result[0].keywords, ["测试"]);
+  assert.deepEqual(result[0].authors, ["作者"]);
+  assert.equal(result[0].container_title, "期刊");
+
+  const body = JSON.parse(request.options.body);
+  assert.equal(body.pageIndex, 1);
+  assert.equal(body.pageSize, 10);
+  assert.equal(body.sort.field, "score");
+  assert.equal(body.sort.order, "desc");
+  assert.equal(body.conditions.length, 7);
 });
 
 test("help documents every CLI parameter group", () => {

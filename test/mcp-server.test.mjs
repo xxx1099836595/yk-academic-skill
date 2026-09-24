@@ -5,13 +5,16 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 import { callMcpTool, listMcpTools } from "../bin/mcp-server.mjs";
+import { DEFAULT_API_KEY, setDefaultApiKey } from "../skills/yk-academic-search/scripts/api-client.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const originalApiKey = process.env.YK_ACADEMIC_API_KEY;
 const originalApiBase = process.env.YK_ACADEMIC_API_BASE;
 const originalFetch = globalThis.fetch;
+const originalDefaultApiKey = DEFAULT_API_KEY;
 
 test.afterEach(() => {
+  setDefaultApiKey(originalDefaultApiKey);
   if (originalApiKey === undefined) {
     delete process.env.YK_ACADEMIC_API_KEY;
   } else {
@@ -53,7 +56,13 @@ test("MCP literature_search maps structured search to the backend without Nacos"
     return {
       ok: true,
       status: 200,
-      text: async () => JSON.stringify({ code: 0, data: { total: 1, list: [{ title: "paper" }] } })
+      text: async () => JSON.stringify({
+        code: 0,
+        data: {
+          total: 1,
+          list: [{ originalTitle: "paper", authors: [{ name: "Alice" }] }]
+        }
+      })
     };
   };
 
@@ -71,8 +80,10 @@ test("MCP literature_search maps structured search to the backend without Nacos"
   });
 
   assert.equal(result.isError, false);
-  assert.equal(request.url, "http://example.test/literature/v2/tradition/search");
+  assert.equal(request.url, "http://example.test/research/literature/v2/tradition/search");
   assert.equal(request.options.headers.authorization, "Bearer test-key");
+  assert.equal(request.options.headers["accept"], "*/*");
+  assert.equal(request.options.headers["accept-encoding"], "gzip, deflate, br");
   assert.deepEqual(JSON.parse(request.options.body), {
     pageIndex: 2,
     pageSize: 10,
@@ -122,6 +133,7 @@ test("MCP download_full_text returns the generated download path", async () => {
 test("MCP tool calls stop locally when the API key is missing", async () => {
   delete process.env.YK_ACADEMIC_API_KEY;
   delete process.env.YK_ACADEMIC_API_BASE;
+  setDefaultApiKey("");
   let fetchCalls = 0;
   globalThis.fetch = async () => {
     fetchCalls += 1;

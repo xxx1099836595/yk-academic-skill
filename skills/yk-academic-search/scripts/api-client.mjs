@@ -1,5 +1,16 @@
-const DEFAULT_API_BASE = "http://192.168.45.252:8610";
+export const DEFAULT_API_BASE = "http://192.168.30.155:8099";
+export let DEFAULT_API_KEY = "7RTKfyq9aScTNXPB0aoaBQbBFkLneZXkg2ZFPFIZ4KU";
+export const TRADITION_SEARCH_PATH = "/research/literature/v2/tradition/search";
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+export function setDefaultApiKey(key) {
+  DEFAULT_API_KEY = key;
+}
+
+const OLD_INVALID_KEYS = new Set([
+  "vydFzvTgorlp3irQY6vILh36koS2zbu8"
+]);
+
 const FIELDS_TO_REMOVE = new Set([
   "zhTitle",
   "enAbstract",
@@ -7,7 +18,10 @@ const FIELDS_TO_REMOVE = new Set([
   "citedDocs",
   "zhAbstract",
   "references",
-  "highLight"
+  "highLight",
+  "aiOverview",
+  "aiGuideReading",
+  "aiFixQuestion"
 ]);
 
 export function printHelp() {
@@ -19,7 +33,7 @@ Usage:
   yk-academic-search fulltext --filepath <path> [full-text options]
 
 Environment:
-  YK_ACADEMIC_API_KEY    Required API key used for Authorization: Bearer <key>
+  YK_ACADEMIC_API_KEY    API key used for Authorization: Bearer <key> (default provided)
   YK_ACADEMIC_API_BASE   Optional backend base URL override
 
 Options:
@@ -68,7 +82,7 @@ export function parseArgs(argv) {
 export async function searchLiterature(parsed) {
   const args = buildSearchArgs(parsed);
   if (args.query) {
-    return intentionSearch(args, parsed);
+    return querySearch(args, parsed);
   }
   return traditionalSearch(args, parsed);
 }
@@ -144,27 +158,54 @@ export function buildFullTextArgs(parsed) {
   };
 }
 
-async function intentionSearch(args, parsed) {
+export function buildQueryConditions(args) {
+  const conditions = [
+    {
+      action: "bracket",
+      conditions: [
+        { action: "condition", exp: { field: "title", symbol: "==", value: args.query } },
+        { action: "operation", operator: "or" },
+        { action: "condition", exp: { field: "keyword", symbol: "==", value: args.query } },
+        { action: "operation", operator: "or" },
+        { action: "condition", exp: { field: "abstract", symbol: "==", value: args.query } }
+      ]
+    }
+  ];
+
   const now = new Date().getFullYear();
-  const startYear = args.start_year ?? now - 5;
+  const startYear = args.start_year ?? (now - 5);
   const endYear = args.end_year ?? now;
-  const language = args.database.trim().toLowerCase() === "chinese" ? "zh" : "en";
+
+  if (startYear !== undefined) {
+    conditions.push({ action: "operation", operator: "and" });
+    conditions.push({ action: "condition", exp: { field: "year", symbol: ">=", value: startYear } });
+  }
+
+  if (endYear !== undefined) {
+    conditions.push({ action: "operation", operator: "and" });
+    conditions.push({ action: "condition", exp: { field: "year", symbol: "<=", value: endYear } });
+  }
+
+  const database = (args.database || "chinese").trim().toLowerCase();
+  if (database === "chinese" || database === "zh") {
+    conditions.push({ action: "operation", operator: "and" });
+    conditions.push({ action: "condition", exp: { field: "language", symbol: "==", value: "zh" } });
+  } else if (database === "english" || database === "en") {
+    conditions.push({ action: "operation", operator: "and" });
+    conditions.push({ action: "condition", exp: { field: "language", symbol: "==", value: "en" } });
+  }
+
+  return conditions;
+}
+
+async function querySearch(args, parsed) {
   const size = clamp(args.size, 1, 50);
-  const intention = await recognizeIntention(args.query, parsed);
-  const body = await postJson("/literature/v2/intention/search", {
-    text: args.query,
-    intentionWords: intention,
-    pageIndex: 1,
+  const conditions = buildQueryConditions(args);
+  const body = await postJson(TRADITION_SEARCH_PATH, {
+    pageIndex: args.page_index || 1,
     pageSize: size,
-    withJournal: false,
-    sort: { field: "score", order: "desc" },
-    conditions: [
-      { action: "condition", exp: { field: "year", symbol: ">=", value: startYear } },
-      { action: "operation", operator: "and" },
-      { action: "condition", exp: { field: "year", symbol: "<=", value: endYear } },
-      { action: "operation", operator: "and" },
-      { action: "condition", exp: { field: "language", symbol: "==", value: language } }
-    ]
+    sort: { field: args.sort_field || "score", order: args.sort_order || "desc" },
+    conditions
   }, parsed);
 
   if (body?.code !== 0) {
@@ -173,17 +214,9 @@ async function intentionSearch(args, parsed) {
   return normalizeListResponse(body);
 }
 
-async function recognizeIntention(query, parsed) {
-  const body = await postJson("/intention/recognize", { text: query }, parsed);
-  if (body?.code !== 0) {
-    throw new Error(`intention/recognize failed: ${JSON.stringify(body)}`);
-  }
-  return body.data;
-}
-
 async function traditionalSearch(args, parsed) {
   validateTraditionalArgs(args);
-  const body = await postJson("/literature/v2/tradition/search", {
+  const body = await postJson(TRADITION_SEARCH_PATH, {
     pageIndex: args.page_index,
     pageSize: args.page_size,
     sort: { field: args.sort_field, order: args.sort_order },
@@ -192,17 +225,29 @@ async function traditionalSearch(args, parsed) {
   return normalizeTraditionalResponse(body);
 }
 
-async function postJson(path, payload, parsed) {
-  const base = String(parsed.apiBase || process.env.YK_ACADEMIC_API_BASE || DEFAULT_API_BASE).replace(/\/+$/, "");
+export function resolveUrl(base, path) {
+  const normalizedBase = String(base).replace(/\/+$/, "");
+  let normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (normalizedBase.endsWith("/research") && normalizedPath.startsWith("/research/")) {
+    normalizedPath = normalizedPath.slice("/research".length);
+  }
+  return `${normalizedBase}${normalizedPath}`;
+}
+
+async function postJson(path, payload, parsed = {}) {
+  const base = String(parsed.apiBase || process.env.YK_ACADEMIC_API_BASE || DEFAULT_API_BASE);
+  const url = resolveUrl(base, path);
   const apiKey = requireApiKey();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   try {
     const headers = {
       "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate, br",
+      "authorization": `Bearer ${apiKey}`
     };
-    const response = await fetch(`${base}${path}`, {
+    const response = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
@@ -218,10 +263,19 @@ async function postJson(path, payload, parsed) {
   }
 }
 
-export function requireApiKey() {
-  const apiKey = String(process.env.YK_ACADEMIC_API_KEY || "").trim();
-  if (!apiKey) {
-    throw new Error(`请您先设置秘钥（YK_ACADEMIC_API_KEY）。
+export function requireApiKey(options = {}) {
+  const envKey = process.env.YK_ACADEMIC_API_KEY;
+  if (envKey !== undefined) {
+    const trimmed = String(envKey).trim();
+    if (trimmed && !OLD_INVALID_KEYS.has(trimmed)) {
+      return trimmed;
+    }
+  }
+  const fallback = options.defaultKey !== undefined ? options.defaultKey : DEFAULT_API_KEY;
+  if (fallback) {
+    return fallback;
+  }
+  throw new Error(`请您先设置秘钥（YK_ACADEMIC_API_KEY）。
 
 Windows PowerShell:
   $env:YK_ACADEMIC_API_KEY="你的秘钥"
@@ -236,8 +290,28 @@ macOS:
   export YK_ACADEMIC_API_KEY="你的秘钥"
 
 设置完成后，请重新打开终端或重新运行命令。`);
+}
+
+function normalizeItem(item) {
+  if (!item || typeof item !== "object") {
+    return;
   }
-  return apiKey;
+  item.title = item.title || item.originalTitle || item.zhTitle || item.enTitle || "";
+  item.abstract = item.abstract || item.originalAbstract || item.zhAbstract || item.enAbstract || "";
+  if (!item.keywords || (Array.isArray(item.keywords) && item.keywords.length === 0)) {
+    item.keywords = item.originalKeywords || item.zhKeywords || item.enKeywords || [];
+  }
+  item.container_title = item.container_title || item.container?.title || "";
+  item.cited_count = item.cited_count ?? item.citedCount ?? 0;
+  item.filepath = item.filepath || item.localAddress || item.pdf?.downloadUrl || "";
+
+  if (Array.isArray(item.authors) && item.authors[0] && typeof item.authors[0] === "object") {
+    item.authors = item.authors.map((author) => author.name || author).filter(Boolean);
+  }
+
+  for (const field of FIELDS_TO_REMOVE) {
+    delete item[field];
+  }
 }
 
 function normalizeListResponse(body) {
@@ -246,14 +320,9 @@ function normalizeListResponse(body) {
     return [];
   }
   resultList.forEach((item, index) => {
-    if (Array.isArray(item.authors) && item.authors[0] && typeof item.authors[0] === "object") {
-      item.authors = item.authors.map((author) => author.name).filter(Boolean);
-    }
+    normalizeItem(item);
     item.arxiv_id = item.id;
     item.id = index + 1;
-    for (const field of FIELDS_TO_REMOVE) {
-      delete item[field];
-    }
   });
   return resultList;
 }
@@ -264,12 +333,7 @@ function normalizeTraditionalResponse(body) {
     return body;
   }
   resultList.forEach((item) => {
-    if (!item || typeof item !== "object") {
-      return;
-    }
-    for (const field of FIELDS_TO_REMOVE) {
-      delete item[field];
-    }
+    normalizeItem(item);
   });
   return body;
 }

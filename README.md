@@ -53,7 +53,7 @@ YK 学术文献检索 Skill 包，包含：
 - `download_full_text`
 
 MCP 服务本身不使用 Nacos。默认后端地址由包内部使用
-`http://192.168.45.252:8610`；如确实需要切换后端，可额外设置
+`http://192.168.30.155:8099`；如确实需要切换后端，可额外设置
 `YK_ACADEMIC_API_BASE`，但它不是 MCP 服务地址。
 
 在本地仓库测试 npx 启动，不需要发布到 npm：
@@ -123,10 +123,13 @@ npx skills remove yk-academic-search -y
 
 ## CLI 调用
 
-Skill 使用命令行脚本直接调用后端接口，不调用 MCP。秘钥只从环境变量
-`YK_ACADEMIC_API_KEY` 读取，不会把秘钥写入 Skill 文件、命令历史或命令行参数。
+Skill 使用命令行脚本直接调用后端接口，不调用 MCP。已内置默认秘钥与后端配置，同时也支持通过环境变量覆盖。
 
-### 配置秘钥
+- 默认后端：`http://192.168.30.155:8099`
+- 默认秘钥：`7RTKfyq9aScTNXPB0aoaBQbBFkLneZXkg2ZFPFIZ4KU`
+- 统一请求头：`Accept: */*`、`Accept-Encoding: gzip, deflate, br`、`Authorization: Bearer <key>`
+
+### 配置秘钥（可选）
 
 Windows PowerShell：
 
@@ -162,10 +165,10 @@ node bin/yk-academic-search.mjs search --query "多模态大模型"
 node bin/yk-academic-search.mjs fulltext --filepath "/path/to/paper.pdf"
 ```
 
-默认后端地址是 `http://192.168.45.252:8610`。也可以覆盖：
+默认后端地址是 `http://192.168.30.155:8099`。也可以覆盖：
 
 ```bash
-set YK_ACADEMIC_API_BASE=http://192.168.45.252:8610
+set YK_ACADEMIC_API_BASE=http://192.168.30.155:8099
 ```
 
 Key 会作为 `Authorization: Bearer <key>` 请求头发送给后端。检索限额应由后端或网关统一控制；Skill 和 CLI 不再通过 MCP 做本地计数。

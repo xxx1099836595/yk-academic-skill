@@ -5,13 +5,13 @@ description: Use when the user asks to search, filter, compare, or retrieve acad
 
 # YK Academic Search
 
-Use the Node CLI in this package to call the YK academic API directly. This Skill does not call MCP, Nacos, or service discovery. The default API base is `http://192.168.45.252:8610`; override it with `YK_ACADEMIC_API_BASE` or `--api-base` when the deployment uses another address.
+Use the Node CLI in this package to call the YK academic API directly. This Skill does not call MCP, Nacos, or service discovery. The default API base is `http://192.168.30.155:8099`; override it with `YK_ACADEMIC_API_BASE` or `--api-base` when the deployment uses another address.
 
 ## Authentication
 
-The API key must come from the `YK_ACADEMIC_API_KEY` environment variable. Never put a key in a Skill file, source file, prompt, or command argument. The CLI sends it as `Authorization: Bearer <key>`.
+The default API key (`7RTKfyq9aScTNXPB0aoaBQbBFkLneZXkg2ZFPFIZ4KU`) is built-in. You can override it via the `YK_ACADEMIC_API_KEY` environment variable. The CLI sends it as `Authorization: Bearer <key>` along with `Accept: */*` and `Accept-Encoding: gzip, deflate, br`.
 
-Before either command, check that the variable is non-empty. If it is missing, do not make a network request. Show:
+If no key is configured and the default key is not present, configure it as follows:
 
 ```text
 请您先设置秘钥（YK_ACADEMIC_API_KEY）。
@@ -57,26 +57,35 @@ Options:
 |---|---|---:|---|
 | `--query` | string | required | Natural-language search text. |
 | `--size` | integer | `15` | Number of results; the CLI clamps it to `1`-`50`. |
-| `--database` | string | `chinese` | `chinese` sends language `zh`; any other value sends language `en`. |
+| `--database` | string | `chinese` | `chinese` sends language `zh`; `english` sends language `en`. |
 | `--start-year` | integer | current year - 5 | Adds `year >= start-year`. |
 | `--end-year` | integer | current year | Adds `year <= end-year`. |
 
-The CLI makes two backend requests:
+The CLI maps natural language queries into structured field conditions targeting `/research/literature/v2/tradition/search`:
+- Matches `query` across `title`, `keyword`, and `abstract` with bracketed `OR` grouping:
+  `((title == query) OR (keyword == query) OR (abstract == query))`
+- Adds publication year bounds: `year >= startYear AND year <= endYear`
+- Adds language restriction: `language == "zh"` (or `"en"`)
 
-1. `POST /intention/recognize` with `{"text":"<query>"}`.
-2. `POST /literature/v2/intention/search` with the recognized intention, page size, score-descending sort, and year/language conditions.
-
-The generated intention-search body has this shape:
+The generated request body has this shape:
 
 ```json
 {
-  "text": "近五年多模态大模型在医学影像中的应用",
-  "intentionWords": "<recognition result>",
   "pageIndex": 1,
   "pageSize": 15,
-  "withJournal": false,
   "sort": { "field": "score", "order": "desc" },
   "conditions": [
+    {
+      "action": "bracket",
+      "conditions": [
+        { "action": "condition", "exp": { "field": "title", "symbol": "==", "value": "近五年多模态大模型在医学影像中的应用" } },
+        { "action": "operation", "operator": "or" },
+        { "action": "condition", "exp": { "field": "keyword", "symbol": "==", "value": "近五年多模态大模型在医学影像中的应用" } },
+        { "action": "operation", "operator": "or" },
+        { "action": "condition", "exp": { "field": "abstract", "symbol": "==", "value": "近五年多模态大模型在医学影像中的应用" } }
+      ]
+    },
+    { "action": "operation", "operator": "and" },
     { "action": "condition", "exp": { "field": "year", "symbol": ">=", "value": 2021 } },
     { "action": "operation", "operator": "and" },
     { "action": "condition", "exp": { "field": "year", "symbol": "<=", "value": 2026 } },
@@ -99,10 +108,10 @@ yk-academic-search search `
   --conditions '[{"action":"condition","exp":{"field":"keyword","symbol":"==","value":"多模态大模型"}},{"action":"operation","operator":"and"},{"action":"condition","exp":{"field":"year","symbol":">=","value":2023}},{"action":"operation","operator":"and"},{"action":"condition","exp":{"field":"cited_count","symbol":">=","value":5}}]'
 ```
 
-The CLI sends this request unchanged apart from the option-name mapping:
+Backend endpoint:
 
 ```text
-POST /literature/v2/tradition/search
+POST /research/literature/v2/tradition/search
 ```
 
 ```json
@@ -173,7 +182,7 @@ Rules:
 - Do not put an `operation` before the first expression or after the last expression.
 - `bracket.conditions` uses the same node format and may be nested.
 - Keep values as numbers for numeric fields and booleans for Boolean fields.
-- Use only the documented field/operator combinations in [references/api.md](references/api.md). Do not invent fields or silently replace an operator. The backend may support additional operators in a particular deployment; use them only when that deployment documents them.
+- Use only the documented field/operator combinations in [references/api.md](references/api.md). Do not invent fields or silently replace an operator.
 
 ## Full-Text Download Link
 
@@ -181,7 +190,7 @@ Use this only after a search result supplies a backend `filepath` or equivalent 
 
 ```powershell
 yk-academic-search fulltext `
-  --filepath "reading/pdf/article.pdf" `
+  --filepath "ChineseJournal/Cnki/8b43cf569b3f9fb6a1b999d49da43447/2024/WXDG202412022.pdf" `
   --file-type local `
   --day 3 `
   --domain-type 1 `
@@ -197,7 +206,7 @@ POST /GenerateDownloadAddress/
 ```json
 {
   "Type": "local",
-  "path": "reading/pdf/article.pdf",
+  "path": "ChineseJournal/Cnki/8b43cf569b3f9fb6a1b999d49da43447/2024/WXDG202412022.pdf",
   "day": 3,
   "title": "论文标题",
   "domain_type": 1
@@ -214,17 +223,25 @@ Options:
 | `--domain-type` | integer | `1` | `domain_type` | Backend domain type. |
 | `--title` | string | empty | `title` | Optional title embedded in the generated URL. |
 
-File type meanings are `local` for a local-file path, `oss` for an OSS path, `book` for a book/edown path, and `dic` for an `oss.dic.cool` path. The endpoint returns `data.download_path`; return that value as the download link when the user asks for a link. Full-text link generation authenticates with the Key but does not consume the search quota.
+File type meanings are `local` for a local-file path, `oss` for an OSS path, `book` for a book/edown path, and `dic` for an `oss.dic.cool` path. Note: Search results also directly include online URLs (`linkUrl`, `pdf.onlineUrl`, DOI link).
 
 ## Output Handling
 
-Structured search normally returns `code`, `message`, `data.total`, and `data.list`. Natural-language search returns a normalized result array. The CLI removes these backend-only or bulky fields from list items:
+Structured search normally returns `code`, `msg`, `data.total`, and `data.list`. Natural-language search returns a normalized result array. The CLI normalizes fields:
+- `title`: normalized from `originalTitle` or `zhTitle` or `enTitle`
+- `abstract`: normalized from `originalAbstract` or `zhAbstract` or `enAbstract`
+- `keywords`: normalized from `originalKeywords` or `zhKeywords` or `enKeywords`
+- `authors`: normalized from author object array to string array of author names
+- `container_title`: normalized from `container.title`
+- `cited_count`: normalized from `citedCount`
+- `filepath`: normalized from `localAddress` or `pdf.downloadUrl`
 
+The CLI removes backend-only, raw or bulky fields from list items:
 ```text
-zhTitle, enAbstract, zhKeywords, citedDocs, zhAbstract, references, highLight
+zhTitle, enAbstract, zhKeywords, citedDocs, zhAbstract, references, highLight, aiOverview, aiGuideReading, aiFixQuestion
 ```
 
-Natural-language results also normalize author objects to author-name arrays, add `arxiv_id` from the original `id`, and replace the local `id` with a one-based result sequence. Empty result lists are returned as `[]`. Present useful fields such as title, year/date, authors, journal, citation count, DOI/PMID, OA/full-text status, and file path. If the user asks for a download link, return only the generated `download_path` rather than the complete search record.
+Natural-language results also add `arxiv_id` from the original `id`, and replace the local `id` with a one-based result sequence. Empty result lists are returned as `[]`. Present useful fields such as title, year/date, authors, journal, citation count, DOI/PMID, OA/full-text status, and file path.
 
 ## Errors and Quotas
 
@@ -234,6 +251,6 @@ Natural-language results also normalize author objects to author-name arrays, ad
 - Full-text detail/link requests do not count as search requests according to the service contract.
 - HTTP, JSON, or backend errors: report the endpoint and concise error; do not fabricate results or links.
 
-The package contains no local quota counter. Any limit, including five Keys with 5,000 searches per Key per day, must be provisioned and enforced by the API gateway/backend.
+The package contains no local quota counter. Any limit must be provisioned and enforced by the API gateway/backend.
 
 For the complete field matrix and payload mapping, read [references/api.md](references/api.md). For backend deployment details, see <https://claude.newacademic.net/docs/>.
