@@ -1,17 +1,26 @@
 ---
 name: yk-academic-search
-description: Use when the user asks to search, filter, compare, or retrieve academic literature through the YK academic search CLI, including field filters, Boolean conditions, citation limits, DOI/PMID lookup, journal constraints, or full-text download links.
+description: 用户需要通过 YK 学术检索 CLI 检索、筛选、比较或获取学术文献时使用，包括字段筛选、布尔条件、被引次数、DOI/PMID、期刊约束和全文下载链接。
 ---
 
-# YK Academic Search
+# YK 学术检索
 
-Use the Node CLI in this package to call the YK academic API directly. The default API base is `https://apisass.newacademic.net`, and the search endpoint is `/gateway/research/literature/v2/tradition/search`. Override the base with `YK_ACADEMIC_API_BASE` or `--api-base` only when the deployment uses another address.
+使用本 Skill 中的 Node CLI 直接调用 YK 学术检索 API。Skill 不调用 MCP、Nacos 或服务发现。
 
-## Authentication
+默认 API 地址为 `https://apisass.newacademic.net`，检索接口为 `/gateway/research/literature/v2/tradition/search`。只有在部署地址不同的情况下，才通过 `YK_ACADEMIC_API_BASE` 或 `--api-base` 覆盖默认地址。
 
-The API key must be provided through the `YK_ACADEMIC_API_KEY` environment variable. The CLI sends it as `Authorization: Bearer <key>` along with `Accept: */*`, `Accept-Encoding: gzip, deflate, br`, and `Content-Type: application/json`.
+## 认证
 
-If no key is configured, configure it as follows:
+API Key 必须通过环境变量 `YK_ACADEMIC_API_KEY` 提供。CLI 使用以下请求头：
+
+```text
+Accept: */*
+Accept-Encoding: gzip, deflate, br
+Authorization: Bearer <key>
+Content-Type: application/json
+```
+
+如果没有配置 Key，请先执行：
 
 ```text
 请您先设置秘钥（YK_ACADEMIC_API_KEY）。
@@ -29,45 +38,43 @@ macOS:
   export YK_ACADEMIC_API_KEY="你的秘钥"
 ```
 
-After the user configures it, ask them to run the command again. The environment variable set with PowerShell or `set` applies to the current terminal and its child processes. For persistent Linux/macOS configuration, add the `export` line to `~/.bashrc` or `~/.zshrc` and open a new terminal.
+配置完成后重新运行命令。PowerShell 或 CMD 中设置的环境变量只对当前终端及其子进程生效；Linux/macOS 可将 `export` 命令写入 `~/.bashrc` 或 `~/.zshrc`。
 
-## Commands
+## 命令
 
-Run the installed command as `yk-academic-search ...`. When running from the Skill directory, use `node scripts/search.mjs ...` or `node scripts/fulltext-link.mjs ...`.
+直接运行已安装的命令 `yk-academic-search ...`。在 Skill 目录中调试时，可以使用 `node scripts/search.mjs ...` 或 `node scripts/fulltext-link.mjs ...`。
 
-| User intent | Command | Required input |
+| 用户需求 | 命令 | 必填参数 |
 |---|---|---|
-| Natural-language literature search | `yk-academic-search search` | `--query <text>` |
-| Exact fields, operators, Boolean groups, sorting, or pagination | `yk-academic-search search` | `--conditions '<JSON array>'` |
-| Generate a download URL from a known backend file path | `yk-academic-search fulltext` | `--filepath <path>` |
+| 按自然语言检索中文文献 | `yk-academic-search search` | `--query <text>` |
+| 按字段、运算符、布尔条件和分页检索 | `yk-academic-search search` | `--conditions '<JSON array>'` |
+| 根据后端文件路径生成全文下载地址 | `yk-academic-search fulltext` | `--filepath <path>` |
 
-Search has two mutually exclusive modes. Never send both `--query` and `--conditions`. A full-text URL can only be generated when a result contains a usable backend file path; a local path on the user's computer is not automatically uploaded.
+检索有两种互斥模式，不能同时提供 `--query` 和 `--conditions`。全文下载地址必须来自检索结果中的后端文件路径；用户电脑上的本地路径不会自动上传。
 
-## Natural-Language Search
+## 自然语言检索
 
-Example:
+示例：
 
 ```powershell
 yk-academic-search search --query "近五年多模态大模型在医学影像中的应用" --size 15 --database chinese --start-year 2021 --end-year 2026
 ```
 
-Options:
-
-| Option | Type | Default | Meaning |
+| 参数 | 类型 | 默认值 | 说明 |
 |---|---|---:|---|
-| `--query` | string | required | Natural-language search text. |
-| `--size` | integer | `15` | Number of results; the CLI clamps it to `1`-`50`. |
-| `--database` | string | `chinese` | Chinese-only selector. Accepted values are `chinese` and `zh`; requests always send `language == "zh"`. |
-| `--start-year` | integer | current year - 5 | Adds `year >= start-year`. |
-| `--end-year` | integer | current year | Adds `year <= end-year`. |
+| `--query` | 字符串 | 必填 | 自然语言检索内容。 |
+| `--size` | 整数 | `15` | 返回数量，限制为 `1`-`50`。 |
+| `--database` | 字符串 | `chinese` | 中文检索选择器，仅接受 `chinese` 或 `zh`，请求始终带有 `language == "zh"`。 |
+| `--start-year` | 整数 | 当前年份 - 5 | 增加 `year >= start-year` 条件。 |
+| `--end-year` | 整数 | 当前年份 | 增加 `year <= end-year` 条件。 |
 
-The CLI maps natural language queries into structured field conditions targeting `/gateway/research/literature/v2/tradition/search`:
-- Matches `query` across `title`, `keyword`, and `abstract` with bracketed `OR` grouping:
-  `((title == query) OR (keyword == query) OR (abstract == query))`
-- Adds publication year bounds: `year >= startYear AND year <= endYear`
-- Adds the fixed language restriction: `language == "zh"`
+CLI 会把自然语言查询转换为结构化条件，发送到 `/gateway/research/literature/v2/tradition/search`：
 
-The generated request body has this shape:
+- 在 `title`、`keyword`、`abstract` 三个字段中匹配查询词，并使用括号形成 `OR` 分组：`((title == query) OR (keyword == query) OR (abstract == query))`。
+- 增加发表年份范围：`year >= startYear AND year <= endYear`。
+- 固定增加中文语种条件：`language == "zh"`。
+
+请求体示例：
 
 ```json
 {
@@ -95,9 +102,11 @@ The generated request body has this shape:
 }
 ```
 
-## Structured Search
+自然语言检索固定使用 `pageIndex: 1` 和按相关性倒序排列。
 
-Example:
+## 结构化检索
+
+示例：
 
 ```powershell
 yk-academic-search search `
@@ -108,7 +117,7 @@ yk-academic-search search `
   --conditions '[{"action":"condition","exp":{"field":"keyword","symbol":"==","value":"多模态大模型"}},{"action":"operation","operator":"and"},{"action":"condition","exp":{"field":"year","symbol":">=","value":2023}},{"action":"operation","operator":"and"},{"action":"condition","exp":{"field":"cited_count","symbol":">=","value":5}}]'
 ```
 
-Backend endpoint:
+后端接口：
 
 ```text
 POST /gateway/research/literature/v2/tradition/search
@@ -124,26 +133,26 @@ POST /gateway/research/literature/v2/tradition/search
     { "action": "operation", "operator": "and" },
     { "action": "condition", "exp": { "field": "year", "symbol": ">=", "value": 2023 } },
     { "action": "operation", "operator": "and" },
-    { "action": "condition", "exp": { "field": "cited_count", "symbol": ">=", "value": 5 } }
+    { "action": "condition", "exp": { "field": "cited_count", "symbol": ">=", "value": 5 } },
+    { "action": "operation", "operator": "and" },
+    { "action": "condition", "exp": { "field": "language", "symbol": "==", "value": "zh" } }
   ]
 }
 ```
 
-Options:
-
-| Option | Type | Default | Valid values / meaning |
+| 参数 | 类型 | 默认值 | 有效值和说明 |
 |---|---|---:|---|
-| `--conditions` | JSON array | required | Condition-node array; use `[]` for no filters. |
-| `--page-index` | integer | `1` | Page number; must be at least `1`. |
-| `--page-size` | integer | `20` | Page size; must be `1`-`100`. |
-| `--sort-field` | string | `score` | `score`, `cited_count`, `publish_date`, or `year`. |
-| `--sort-order` | string | `desc` | `asc` or `desc`. |
+| `--conditions` | JSON 数组 | 必填 | 条件节点数组；没有其他筛选条件时使用 `[]`。CLI 会自动追加中文条件。 |
+| `--page-index` | 整数 | `1` | 页码，必须大于等于 `1`。 |
+| `--page-size` | 整数 | `20` | 每页数量，限制为 `1`-`100`。 |
+| `--sort-field` | 字符串 | `score` | `score`、`cited_count`、`publish_date` 或 `year`。 |
+| `--sort-order` | 字符串 | `desc` | `asc` 或 `desc`。 |
 
-Structured searches are also restricted to Chinese literature. The CLI appends `language == "zh"` when absent and rejects `language == "en"` or other non-Chinese language conditions.
+结构化检索固定为中文。条件树中没有语种条件时，CLI 自动追加 `language == "zh"`；如果显式指定英文或其他语种条件，CLI 会拒绝请求。
 
-## Condition Syntax
+## 条件语法
 
-`conditions` is a JSON array. A `condition` is one expression:
+`conditions` 是 JSON 数组。单个条件节点示例：
 
 ```json
 {
@@ -156,13 +165,13 @@ Structured searches are also restricted to Chinese literature. The CLI appends `
 }
 ```
 
-Put an `operation` only between adjacent expressions. Its operator is `and` or `or`:
+`operation` 只能放在两个表达式之间，运算符为 `and` 或 `or`：
 
 ```json
 { "action": "operation", "operator": "and" }
 ```
 
-Use `bracket` to group nested expressions. For `(LLM OR 大语言模型) AND year >= 2024`:
+使用 `bracket` 表示分组。例如 `(LLM OR 大语言模型) AND year >= 2024`：
 
 ```json
 [
@@ -179,16 +188,16 @@ Use `bracket` to group nested expressions. For `(LLM OR 大语言模型) AND yea
 ]
 ```
 
-Rules:
+规则：
 
-- Do not put an `operation` before the first expression or after the last expression.
-- `bracket.conditions` uses the same node format and may be nested.
-- Keep values as numbers for numeric fields and booleans for Boolean fields.
-- Use only the documented field/operator combinations in [references/api.md](references/api.md). Do not invent fields or silently replace an operator.
+- 第一个表达式前和最后一个表达式后不能放 `operation`。
+- `bracket.conditions` 使用相同的节点格式，并且支持嵌套。
+- 数字字段使用数字值，布尔字段使用布尔值。
+- 只能使用 [references/api.md](references/api.md) 中记录的字段和运算符。
 
-## Full-Text Download Link
+## 全文下载链接
 
-Use this only after a search result supplies a backend `filepath` or equivalent file path:
+只有在检索结果提供后端 `filepath` 或等价文件路径后，才能生成全文下载链接：
 
 ```powershell
 yk-academic-search fulltext `
@@ -199,7 +208,7 @@ yk-academic-search fulltext `
   --title "论文标题"
 ```
 
-The CLI sends:
+CLI 调用：
 
 ```text
 POST /gateway/GenerateDownloadAddress/
@@ -215,44 +224,38 @@ POST /gateway/GenerateDownloadAddress/
 }
 ```
 
-Options:
+`--file-type` 支持 `local`、`oss`、`book` 和 `dic`。接口成功时必须返回 `data.download_path`；如果检索结果没有后端文件路径，不要自行编造路径或链接。
 
-| Option | Type | Default | Backend field | Meaning |
-|---|---|---:|---|---|
-| `--filepath` | string | required | `path` | Backend local/OSS file path. |
-| `--file-type` | string | `local` | `Type` | `local`, `oss`, `book`, or `dic`. |
-| `--day` | integer | `3` | `day` | Download URL validity period in days. |
-| `--domain-type` | integer | `1` | `domain_type` | Backend domain type. |
-| `--title` | string | empty | `title` | Optional title embedded in the generated URL. |
+## 输出处理
 
-File type meanings are `local` for a local-file path, `oss` for an OSS path, `book` for a book/edown path, and `dic` for an `oss.dic.cool` path. Note: Search results also directly include online URLs (`linkUrl`, `pdf.onlineUrl`, DOI link).
+结构化检索通常返回 `code`、`msg`、`data.total` 和 `data.list`。自然语言检索返回标准化后的结果数组。
 
-## Output Handling
+CLI 会统一以下字段：
 
-Structured search normally returns `code`, `msg`, `data.total`, and `data.list`. Natural-language search returns a normalized result array. The CLI normalizes fields:
-- `title`: normalized from `originalTitle` or `zhTitle` or `enTitle`
-- `abstract`: normalized from `originalAbstract` or `zhAbstract` or `enAbstract`
-- `keywords`: normalized from `originalKeywords` or `zhKeywords` or `enKeywords`
-- `authors`: normalized from author object array to string array of author names
-- `container_title`: normalized from `container.title`
-- `cited_count`: normalized from `citedCount`
-- `filepath`: normalized from `localAddress` or `pdf.downloadUrl`
+- `title`：从 `title`、`originalTitle`、`zhTitle` 或 `enTitle` 获取。
+- `abstract`：从 `abstract`、`originalAbstract`、`zhAbstract` 或 `enAbstract` 获取。
+- `keywords`：从 `keywords`、`originalKeywords`、`zhKeywords` 或 `enKeywords` 获取。
+- `authors`：作者对象数组转换为作者姓名数组。
+- `container_title`：从 `container.title` 获取。
+- `cited_count`：从 `citedCount` 获取。
+- `filepath`：从 `localAddress` 或 `pdf.downloadUrl` 获取。
 
-The CLI removes backend-only, raw or bulky fields from list items:
+输出前会删除后端原始或冗余字段：
+
 ```text
 zhTitle, enAbstract, zhKeywords, citedDocs, zhAbstract, references, highLight, aiOverview, aiGuideReading, aiFixQuestion
 ```
 
-Natural-language results also add `arxiv_id` from the original `id`, and replace the local `id` with a one-based result sequence. Empty result lists are returned as `[]`. Present useful fields such as title, year/date, authors, journal, citation count, DOI/PMID, OA/full-text status, and file path.
+自然语言检索还会将原始 `id` 复制为 `arxiv_id`，并把 `id` 替换为从 1 开始的结果序号。没有结果时返回 `[]`。
 
-## Errors and Quotas
+## 错误与配额
 
-- Missing Key: show the configuration block above and do not retry automatically.
-- Invalid Key: ask the user to configure a valid `YK_ACADEMIC_API_KEY`.
-- Daily search quota exhausted: stop additional search calls and report that the Key has no remaining search quota.
-- Full-text detail/link requests do not count as search requests according to the service contract.
-- HTTP, JSON, or backend errors: report the endpoint and concise error; do not fabricate results or links.
+- 没有 `YK_ACADEMIC_API_KEY` 时，显示配置说明并停止请求。
+- Key 无效时，提示配置有效的 `YK_ACADEMIC_API_KEY`。
+- 每日检索配额耗尽时，停止继续请求并提示配额不足。
+- 全文链接生成不计入检索次数，具体以服务端策略为准。
+- HTTP 错误、JSON 解析错误或缺少 `download_path` 时，报告错误，不伪造结果或链接。
 
-The package contains no local quota counter. Any limit must be provisioned and enforced by the API gateway/backend.
+配额由 API 网关或后端统一控制，Skill 和 CLI 不维护本地配额计数。
 
-For the complete field matrix and payload mapping, read [references/api.md](references/api.md). For backend deployment details, see <https://claude.newacademic.net/docs/>.
+完整字段和请求体说明请阅读 [references/api.md](references/api.md)。

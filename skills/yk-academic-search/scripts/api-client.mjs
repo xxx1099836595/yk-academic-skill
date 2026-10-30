@@ -26,34 +26,34 @@ const FIELDS_TO_REMOVE = new Set([
 ]);
 
 export function printHelp() {
-  console.log(`yk-academic-search
+  console.log(`YK 学术检索
 
-Usage:
-  yk-academic-search search --query <text> [query options]
-  yk-academic-search search --conditions '<json-array>' [structured options]
-  yk-academic-search fulltext --filepath <path> [full-text options]
+用法：
+  yk-academic-search search --query <text> [自然语言检索参数]
+  yk-academic-search search --conditions '<json-array>' [结构化检索参数]
+  yk-academic-search fulltext --filepath <path> [全文链接参数]
 
-Environment:
-  YK_ACADEMIC_API_KEY    API key used for Authorization: Bearer <key> (required)
-  YK_ACADEMIC_API_BASE   Optional backend base URL override
+环境变量：
+  YK_ACADEMIC_API_KEY    Authorization: Bearer <key> 使用的 API Key（必填）
+  YK_ACADEMIC_API_BASE   可选的后端地址覆盖项
 
-Options:
-  --api-base <url>     Backend base URL. Defaults to YK_ACADEMIC_API_BASE or ${DEFAULT_API_BASE}
-  --query <text>       Natural-language search text
-  --conditions <json>  Structured condition node array
-  --size <number>      Natural-language result count, default 15, range 1-50
-  --database <name>    Chinese database selector, chinese or zh; default chinese
-  --start-year <year>  Natural-language lower year bound; default current year - 5
-  --end-year <year>    Natural-language upper year bound; default current year
-  --page-index <n>     Structured page number starting at 1; default 1
-  --page-size <n>      Structured page size, range 1-100; default 20
-  --sort-field <name>  score, cited_count, publish_date, or year
-  --sort-order <name>  asc or desc; default desc
-  --filepath <path>    Backend local/OSS file path for full-text link generation
-  --file-type <type>   local, oss, book, or dic; default local
-  --day <number>       Full-text URL validity in days; default 3
-  --domain-type <n>    Backend domain type; default 1
-  --title <text>       Optional title embedded in the download URL
+参数：
+  --api-base <url>     后端地址，默认使用 YK_ACADEMIC_API_BASE 或 ${DEFAULT_API_BASE}
+  --query <text>       自然语言检索内容
+  --conditions <json>  结构化条件节点数组
+  --size <number>      自然语言检索结果数量，默认 15，范围 1-50
+  --database <name>    中文语种选择器，支持 chinese 或 zh，默认 chinese
+  --start-year <year>  自然语言检索的起始年份，默认当前年份 - 5
+  --end-year <year>    自然语言检索的结束年份，默认当前年份
+  --page-index <n>     结构化检索页码，从 1 开始，默认 1
+  --page-size <n>      结构化检索每页数量，范围 1-100，默认 20
+  --sort-field <name>  排序字段：score、cited_count、publish_date 或 year
+  --sort-order <name>  排序方向：asc 或 desc，默认 desc
+  --filepath <path>    后端文件路径，用于生成全文链接
+  --file-type <type>   文件类型：local、oss、book 或 dic，默认 local
+  --day <number>       全文链接有效期，单位为天，默认 3
+  --domain-type <n>    后端域类型，默认 1
+  --title <text>       下载地址中使用的可选论文标题
 `);
 }
 
@@ -99,11 +99,11 @@ export async function generateFullTextLink(parsed) {
   }, parsed);
 
   if (body?.code !== 0) {
-    throw new Error(`GenerateDownloadAddress failed: ${JSON.stringify(body)}`);
+    throw new Error(`全文地址生成失败：${JSON.stringify(body)}`);
   }
   const downloadPath = body?.data?.download_path;
   if (!downloadPath) {
-    throw new Error(`GenerateDownloadAddress response missing download_path: ${JSON.stringify(body)}`);
+    throw new Error(`全文地址响应缺少 download_path：${JSON.stringify(body)}`);
   }
   return {
     success: true,
@@ -130,10 +130,10 @@ export function buildSearchArgs(parsed) {
     args.conditions = JSON.parse(parsed.conditions);
   }
   if (!args.query && !args.conditions) {
-    throw new Error("search requires --query or --conditions");
+    throw new Error("search 必须提供 --query 或 --conditions");
   }
   if (args.query && args.conditions) {
-    throw new Error("--query and --conditions cannot be used together");
+    throw new Error("--query 和 --conditions 不能同时使用");
   }
   args.size = numberOrDefault(parsed.size, 15);
   args.database = String(parsed.database || "chinese");
@@ -148,7 +148,7 @@ export function buildSearchArgs(parsed) {
 
 export function buildFullTextArgs(parsed) {
   if (!parsed.filepath) {
-    throw new Error("fulltext requires --filepath");
+    throw new Error("fulltext 必须提供 --filepath");
   }
   return {
     filepath: String(parsed.filepath),
@@ -386,19 +386,19 @@ function normalizeTraditionalResponse(body) {
 
 function validateTraditionalArgs(args) {
   if (args.page_index < 1) {
-    throw new Error("page_index must be >= 1");
+    throw new Error("page_index 必须大于等于 1");
   }
   if (args.page_size < 1 || args.page_size > 100) {
-    throw new Error("page_size must be between 1 and 100");
+    throw new Error("page_size 必须在 1 到 100 之间");
   }
   if (!["score", "cited_count", "publish_date", "year"].includes(args.sort_field)) {
-    throw new Error("sort_field must be score, cited_count, publish_date, or year");
+    throw new Error("sort_field 必须是 score、cited_count、publish_date 或 year");
   }
   if (!["asc", "desc"].includes(args.sort_order)) {
-    throw new Error("sort_order must be asc or desc");
+    throw new Error("sort_order 必须是 asc 或 desc");
   }
   if (!Array.isArray(args.conditions)) {
-    throw new Error("conditions must be a JSON array");
+    throw new Error("conditions 必须是 JSON 数组");
   }
 }
 
@@ -408,7 +408,7 @@ function numberOrDefault(value, defaultValue) {
   }
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
-    throw new Error(`${value} is not a valid number`);
+    throw new Error(`${value} 不是有效数字`);
   }
   return parsed;
 }

@@ -17,54 +17,54 @@ const TOOL_DEFINITIONS = [
   {
     name: "literature_search",
     description:
-      "Search academic literature. Use query for natural-language search, or conditions for structured field filters. Do not provide both.",
+      "检索中文学术文献。自然语言检索使用 query，字段条件检索使用 conditions，不能同时提供两者。",
     inputSchema: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "Natural-language literature search text."
+          description: "自然语言学术文献检索内容。"
         },
         conditions: {
           type: "array",
           description:
-            "Structured condition-node array. Use condition, operation, and bracket nodes.",
+            "结构化条件节点数组，使用 condition、operation 和 bracket 节点。",
           items: { type: "object" }
         },
         size: {
           type: "integer",
-          description: "Natural-language result count, 1-50. Default 15."
+          description: "自然语言检索结果数量，范围 1-50，默认 15。"
         },
         database: {
           type: "string",
           enum: ["chinese", "zh"],
-          description: "Chinese-only search selector. Default is chinese."
+          description: "中文语种检索选择器，默认 chinese。"
         },
         start_year: {
           type: "integer",
-          description: "Natural-language lower publication-year bound."
+          description: "自然语言检索的起始发表年份。"
         },
         end_year: {
           type: "integer",
-          description: "Natural-language upper publication-year bound."
+          description: "自然语言检索的结束发表年份。"
         },
         page_index: {
           type: "integer",
-          description: "Structured-search page number starting at 1. Default 1."
+          description: "结构化检索页码，从 1 开始，默认 1。"
         },
         page_size: {
           type: "integer",
-          description: "Structured-search page size, 1-100. Default 20."
+          description: "结构化检索每页数量，范围 1-100，默认 20。"
         },
         sort_field: {
           type: "string",
           enum: ["score", "cited_count", "publish_date", "year"],
-          description: "Structured-search sort field."
+          description: "结构化检索排序字段。"
         },
         sort_order: {
           type: "string",
           enum: ["asc", "desc"],
-          description: "Structured-search sort order."
+          description: "结构化检索排序方向。"
         }
       },
       additionalProperties: false
@@ -73,30 +73,30 @@ const TOOL_DEFINITIONS = [
   {
     name: "download_full_text",
     description:
-      "Generate a full-text download URL from a backend file path returned by literature search.",
+      "根据学术检索结果中的后端文件路径生成全文下载地址。",
     inputSchema: {
       type: "object",
       properties: {
         filepath: {
           type: "string",
-          description: "Backend local, OSS, book, or dic file path."
+          description: "后端本地、OSS、图书或词典文件路径。"
         },
         file_type: {
           type: "string",
           enum: ["local", "oss", "book", "dic"],
-          description: "Backend file path type. Default local."
+          description: "后端文件路径类型，默认 local。"
         },
         day: {
           type: "integer",
-          description: "Download URL validity in days. Default 3."
+          description: "下载地址有效期，单位为天，默认 3。"
         },
         domain_type: {
           type: "integer",
-          description: "Backend domain type. Default 1."
+          description: "后端域类型，默认 1。"
         },
         title: {
           type: "string",
-          description: "Optional paper title."
+          description: "可选论文标题。"
         }
       },
       required: ["filepath"],
@@ -119,7 +119,7 @@ export async function callMcpTool(name, argumentsObject = {}) {
       const result = await generateFullTextLink(toFullTextArgs(argumentsObject));
       return textResult(result);
     }
-    return errorResult(`Unknown tool: ${name}`);
+    return errorResult(`未知工具：${name}`);
   } catch (error) {
     return errorResult(error instanceof Error ? error.message : String(error));
   }

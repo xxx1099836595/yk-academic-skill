@@ -24,7 +24,7 @@ try {
     const result = await generateFullTextLink(parsed);
     printResult(result);
   } else {
-    throw new Error(`Unknown command: ${command}`);
+    throw new Error(`未知命令：${command}`);
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

@@ -1,24 +1,24 @@
-# YK Academic Search API Reference
+# YK 学术检索 API 参考
 
-This reference describes the direct HTTP calls made by the Node CLI and the exact CLI-to-API parameter mapping. The Skill does not call MCP, Nacos, or service discovery.
+本文档说明 Node CLI 直接调用的 HTTP 接口，以及 CLI 参数到 API 请求体的完整映射。Skill 不调用 MCP、Nacos 或服务发现。
 
-## Connection and Authentication
+## 连接与认证
 
-Default API base:
+默认 API 地址：
 
 ```text
 https://apisass.newacademic.net
 ```
 
-The CLI chooses the base URL in this order:
+CLI 按以下优先级选择 API 地址：
 
 1. `--api-base <url>`
 2. `YK_ACADEMIC_API_BASE`
 3. `https://apisass.newacademic.net`
 
-The API key is supplied through the `YK_ACADEMIC_API_KEY` environment variable. The repository does not embed a production key.
+API Key 通过 `YK_ACADEMIC_API_KEY` 环境变量提供，仓库不内置生产 Key。
 
-The CLI sends HTTP requests with the following standard headers:
+CLI 发送以下请求头：
 
 ```text
 Accept: */*
@@ -27,7 +27,7 @@ Authorization: Bearer <key>
 Content-Type: application/json
 ```
 
-If you wish to configure a custom key:
+配置 Key：
 
 ```powershell
 # Windows PowerShell
@@ -47,9 +47,9 @@ export YK_ACADEMIC_API_KEY="你的秘钥"
 export YK_ACADEMIC_API_KEY="你的秘钥"
 ```
 
-There is intentionally no `--api-key` option. If the variable is missing, the CLI prints the setup tutorial and does not call the network.
+CLI 没有 `--api-key` 参数。缺少 Key 时，CLI 显示配置说明并停止网络请求。
 
-## CLI Overview
+## CLI 概览
 
 ```text
 yk-academic-search search --query <text> [--size 15] [--database chinese] [--start-year 2021] [--end-year 2026]
@@ -57,11 +57,11 @@ yk-academic-search search --conditions '<JSON array>' [--page-index 1] [--page-s
 yk-academic-search fulltext --filepath <path> [--file-type local] [--day 3] [--domain-type 1] [--title <text>]
 ```
 
-The search modes are mutually exclusive. Use `--query` for natural-language intent recognition or `--conditions` for an explicit condition tree.
+检索模式互斥：`--query` 用于自然语言检索，`--conditions` 用于显式条件树。整个 Skill 固定检索中文文献。
 
-## Natural-Language Search
+## 自然语言检索
 
-### CLI request
+### CLI 调用
 
 ```powershell
 yk-academic-search search `
@@ -72,31 +72,36 @@ yk-academic-search search `
   --end-year 2026
 ```
 
-| CLI option | Type | Default | Validation / mapping |
+| CLI 参数 | 类型 | 默认值 | 校验和映射 |
 |---|---|---:|---|
-| `--query` | string | required | Sent as the search text. |
-| `--size` | integer | `15` | Clamped to `1`-`50`; sent as `pageSize`. |
-| `--database` | string | `chinese` | Chinese-only selector. `chinese` and `zh` map to `language == "zh"`; other values are rejected. |
-| `--start-year` | integer | current year - 5 | Adds `year >=` to the generated conditions. |
-| `--end-year` | integer | current year | Adds `year <=` to the generated conditions. |
+| `--query` | 字符串 | 必填 | 作为检索词生成字段条件。 |
+| `--size` | 整数 | `15` | 限制在 `1`-`50`，映射为 `pageSize`。 |
+| `--database` | 字符串 | `chinese` | 只接受 `chinese` 或 `zh`，固定映射为 `language == "zh"`。 |
+| `--start-year` | 整数 | 当前年份 - 5 | 增加 `year >= start-year`。 |
+| `--end-year` | 整数 | 当前年份 | 增加 `year <= end-year`。 |
 
-The CLI maps natural-language queries into structured field conditions and sends them directly to:
+后端接口：
 
 ```text
 POST /gateway/research/literature/v2/tradition/search
-Content-Type: application/json
+```
+
+请求头：
+
+```text
 Accept: */*
 Accept-Encoding: gzip, deflate, br
 Authorization: Bearer <key>
+Content-Type: application/json
 ```
 
-Query mapping:
-- Matches `query` across `title`, `keyword`, and `abstract` using a bracketed `OR` group:
-  `((title == query) OR (keyword == query) OR (abstract == query))`
-- Adds year boundaries: `year >= startYear AND year <= endYear`
-- Adds the fixed language restriction: `language == "zh"`
+查询映射规则：
 
-Request body:
+- 在 `title`、`keyword`、`abstract` 中匹配 `query`，使用括号形成 `OR` 分组：`((title == query) OR (keyword == query) OR (abstract == query))`。
+- 增加年份条件：`year >= startYear AND year <= endYear`。
+- 固定增加语种条件：`language == "zh"`。
+
+请求体示例：
 
 ```json
 {
@@ -124,11 +129,11 @@ Request body:
 }
 ```
 
-The CLI always uses `pageIndex: 1` and relevance-descending sort in natural-language mode.
+自然语言检索固定使用 `pageIndex: 1` 和 `score desc` 排序。
 
-## Structured Search
+## 结构化检索
 
-### CLI request
+### CLI 调用
 
 ```powershell
 yk-academic-search search `
@@ -139,26 +144,25 @@ yk-academic-search search `
   --conditions '[{"action":"condition","exp":{"field":"keyword","symbol":"==","value":"多模态大模型"}},{"action":"operation","operator":"and"},{"action":"condition","exp":{"field":"year","symbol":">=","value":2023}},{"action":"operation","operator":"and"},{"action":"condition","exp":{"field":"cited_count","symbol":">=","value":5}}]'
 ```
 
-Backend endpoint:
+后端接口：
 
 ```text
 POST /gateway/research/literature/v2/tradition/search
-Content-Type: application/json
 ```
 
-CLI options map to this body:
+CLI 参数到请求体的映射：
 
-| CLI option | JSON field | Type | Default / validation |
+| CLI 参数 | JSON 字段 | 类型 | 默认值和校验 |
 |---|---|---|---|
-| `--page-index` | `pageIndex` | integer | `1`; must be >= 1. |
-| `--page-size` | `pageSize` | integer | `20`; must be 1-100. |
-| `--sort-field` | `sort.field` | string | `score`; `score`, `cited_count`, `publish_date`, or `year`. |
-| `--sort-order` | `sort.order` | string | `desc`; `asc` or `desc`. |
-| `--conditions` | `conditions` | array | required; `[]` means no filter. Passed through as parsed JSON. |
+| `--page-index` | `pageIndex` | 整数 | `1`，必须大于等于 `1`。 |
+| `--page-size` | `pageSize` | 整数 | `20`，限制为 `1`-`100`。 |
+| `--sort-field` | `sort.field` | 字符串 | `score`；支持 `score`、`cited_count`、`publish_date`、`year`。 |
+| `--sort-order` | `sort.order` | 字符串 | `desc`；支持 `asc`、`desc`。 |
+| `--conditions` | `conditions` | 数组 | 必填；`[]` 表示没有其他筛选条件。CLI 会自动追加中文条件。 |
 
-Structured search is Chinese-only. If the condition tree does not contain a language condition, the CLI appends `language == "zh"`. A language condition with any other value or operator is rejected.
+结构化检索固定为中文。如果条件树中没有语种条件，CLI 追加 `language == "zh"`；如果指定 `language == "en"` 或其他非中文条件，CLI 拒绝请求。
 
-Request body:
+请求体示例：
 
 ```json
 {
@@ -170,16 +174,18 @@ Request body:
     { "action": "operation", "operator": "and" },
     { "action": "condition", "exp": { "field": "year", "symbol": ">=", "value": 2023 } },
     { "action": "operation", "operator": "and" },
-    { "action": "condition", "exp": { "field": "cited_count", "symbol": ">=", "value": 5 } }
+    { "action": "condition", "exp": { "field": "cited_count", "symbol": ">=", "value": 5 } },
+    { "action": "operation", "operator": "and" },
+    { "action": "condition", "exp": { "field": "language", "symbol": "==", "value": "zh" } }
   ]
 }
 ```
 
-## Condition Nodes
+## 条件节点
 
-The API uses an ordered node array rather than a flat map. The CLI parses the JSON array and puts it in the request body without changing its nodes.
+API 使用有序节点数组，而不是扁平键值表。
 
-Single expression:
+单个表达式：
 
 ```json
 {
@@ -192,13 +198,13 @@ Single expression:
 }
 ```
 
-Logical connector:
+逻辑连接符：
 
 ```json
 { "action": "operation", "operator": "and" }
 ```
 
-Grouped expression:
+分组表达式：
 
 ```json
 {
@@ -211,56 +217,61 @@ Grouped expression:
 }
 ```
 
-For `(A OR B) AND C`, use `[bracket(A, or, B), and, C]`. An `operation` belongs only between expressions. A bracket can contain another bracket and uses the same node rules.
+规则：
 
-The field and symbol must be compatible. The following matrix is the supported contract:
+- `operation` 只能放在相邻表达式之间。
+- `bracket.conditions` 使用相同的节点格式，并支持嵌套。
+- 数字字段使用数字值，布尔字段使用布尔值。
+- 只能使用下方字段矩阵中的字段和运算符。
 
-| Field | JSON value type | Supported symbols | Description / accepted values |
+## 字段和运算符矩阵
+
+| 字段 | JSON 值类型 | 支持的运算符 | 说明或取值 |
 |---|---|---|---|
-| `title` | string | `==`, `!=` | Title. |
-| `abstract` | string | `==`, `!=` | Abstract. |
-| `author` | string | `==`, `!=` | Any author. |
-| `first_author` | string | `==`, `!=` | First author. |
-| `institution` | string | `==`, `!=` | Institution/affiliation. |
-| `year` | number | `==`, `!=`, `>`, `<`, `>=`, `<=` | Publication year. |
-| `language` | string | `==`, `!=` | Typically `zh` or `en`. |
-| `topic` | string | `==`, `!=` | Topic. |
-| `subject` | string | `==`, `!=` | Subject. |
-| `keyword` | string | `==`, `!=` | Keyword. |
-| `container_title` | string | `==`, `!=` | Journal or conference name. |
-| `publisher` | string | `==`, `!=` | Publisher. |
-| `location` | string | `==`, `!=` | Conference location. |
-| `organizer` | string | `==`, `!=` | Conference organizer. |
-| `issn` | string | `==`, `!=` | ISSN. |
-| `doi` | string | `==` | DOI. |
-| `pmid` | string | `==` | PMID. |
-| `pmcid` | string | `==` | PMCID. |
-| `openalexid` | string | `==` | OpenAlex ID. |
-| `has_abstract` | boolean | `==` | Whether an abstract exists. |
-| `has_fulltext` | boolean | `==` | Whether full text exists. |
-| `is_oa` | boolean | `==` | Whether the resource is open access. |
-| `cited_count` | number | `>`, `<`, `>=`, `<=` | Citation count. |
-| `type` | string | `==` | `journal` or conference. |
-| `publish_date` | string | `==`, `!=` | `YYYY-MM` or `YYYY-MM-DD`. |
-| `platform` | string | `==` | 知网, 万方, 维普, Scopus, Wos, or OpenAlex. |
-| `core_journal` | boolean | `==` | Whether it is a core journal. |
-| `article_type` | string | `==`, `!=` | PubMed article type. |
-| `med_platform` | number or string | `==`, `!=` | `1` PubMed, `2` domestic medicine, `3` preprint. |
-| `mesh` | string | `==`, `!=` | MeSH term. |
-| `chemical` | string | `==`, `!=` | Chemical substance. |
+| `title` | 字符串 | `==`, `!=` | 标题。 |
+| `abstract` | 字符串 | `==`, `!=` | 摘要。 |
+| `author` | 字符串 | `==`, `!=` | 任意作者。 |
+| `first_author` | 字符串 | `==`, `!=` | 第一作者。 |
+| `institution` | 字符串 | `==`, `!=` | 机构或作者单位。 |
+| `year` | 数字 | `==`, `!=`, `>`, `<`, `>=`, `<=` | 发表年份。 |
+| `language` | 字符串 | `==`, `!=` | 本 Skill 固定为 `zh`。 |
+| `topic` | 字符串 | `==`, `!=` | 主题。 |
+| `subject` | 字符串 | `==`, `!=` | 学科。 |
+| `keyword` | 字符串 | `==`, `!=` | 关键词。 |
+| `container_title` | 字符串 | `==`, `!=` | 期刊或会议名称。 |
+| `publisher` | 字符串 | `==`, `!=` | 出版者。 |
+| `location` | 字符串 | `==`, `!=` | 会议地点。 |
+| `organizer` | 字符串 | `==`, `!=` | 会议组织者。 |
+| `issn` | 字符串 | `==`, `!=` | ISSN。 |
+| `doi` | 字符串 | `==` | DOI。 |
+| `pmid` | 字符串 | `==` | PMID。 |
+| `pmcid` | 字符串 | `==` | PMCID。 |
+| `openalexid` | 字符串 | `==` | OpenAlex ID。 |
+| `has_abstract` | 布尔值 | `==` | 是否有摘要。 |
+| `has_fulltext` | 布尔值 | `==` | 是否有全文。 |
+| `is_oa` | 布尔值 | `==` | 是否开放获取。 |
+| `cited_count` | 数字 | `>`, `<`, `>=`, `<=` | 被引次数。 |
+| `type` | 字符串 | `==` | `journal` 或 `conference`。 |
+| `publish_date` | 字符串 | `==`, `!=` | `YYYY-MM` 或 `YYYY-MM-DD`。 |
+| `platform` | 字符串 | `==` | 知网、万方、维普、Scopus、Wos 或 OpenAlex。 |
+| `core_journal` | 布尔值 | `==` | 是否核心期刊。 |
+| `article_type` | 字符串 | `==`, `!=` | PubMed 文章类型。 |
+| `med_platform` | 数字或字符串 | `==`, `!=` | `1` PubMed，`2` 国内医学，`3` 预印本。 |
+| `mesh` | 字符串 | `==`, `!=` | MeSH 术语。 |
+| `chemical` | 字符串 | `==`, `!=` | 化学物质。 |
 
-The source contract lists exact operators above. Do not assume `like` is available for every field. If a particular backend deployment documents an extra operator, pass it exactly as documented; the CLI does not silently translate operators.
+不要假设所有字段都支持 `like`。CLI 不会自动替换未记录的运算符。
 
-## Full-Text Link Generation
+## 全文链接生成
 
-The endpoint creates a download URL from a backend file path. It does not upload a local file.
+该接口根据后端文件路径生成下载地址，不会上传用户本地文件。
 
 ```text
 POST /gateway/GenerateDownloadAddress/
 Content-Type: application/json
 ```
 
-CLI example:
+CLI 示例：
 
 ```powershell
 yk-academic-search fulltext `
@@ -271,17 +282,7 @@ yk-academic-search fulltext `
   --title "论文标题"
 ```
 
-CLI-to-body mapping:
-
-| CLI option | Backend field | Type | Default | Meaning |
-|---|---|---|---:|---|
-| `--filepath` | `path` | string | required | Backend local/OSS file path. |
-| `--file-type` | `Type` | string | `local` | `local`, `oss`, `book`, or `dic`. |
-| `--day` | `day` | integer | `3` | URL validity period in days. |
-| `--domain-type` | `domain_type` | integer | `1` | Backend domain type. |
-| `--title` | `title` | string | empty | Optional title. |
-
-Request example:
+请求体：
 
 ```json
 {
@@ -293,20 +294,19 @@ Request example:
 }
 ```
 
-`Type` meanings:
+| 参数 | 后端字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---:|---|
+| `--filepath` | `path` | 字符串 | 必填 | 后端本地、OSS、图书或词典文件路径。 |
+| `--file-type` | `Type` | 字符串 | `local` | `local`、`oss`、`book` 或 `dic`。 |
+| `--day` | `day` | 整数 | `3` | 下载地址有效期，单位为天。 |
+| `--domain-type` | `domain_type` | 整数 | `1` | 后端域类型。 |
+| `--title` | `title` | 字符串 | 空 | 嵌入下载地址的可选标题。 |
 
-| Type | Meaning |
-|---|---|
-| `local` | Local-file path understood by the backend. |
-| `oss` | OSS download path. |
-| `book` | Book/edown path. |
-| `dic` | `oss.dic.cool` path. |
+成功响应必须包含 `data.download_path`，CLI 将其返回为 `download_path`。如果检索结果没有后端文件路径，不要使用用户无关的本地路径代替。
 
-The CLI requires `data.download_path` in a successful response and returns it as `download_path`. Full-text generation uses the API key for authentication but does not consume the search quota. If the search result has no backend file path, do not invent one or pass the user's unrelated local path.
+## 响应与标准化
 
-## Responses and Normalization
-
-Traditional search commonly returns:
+传统检索通常返回以下结构：
 
 ```json
 {
@@ -331,37 +331,30 @@ Traditional search commonly returns:
 }
 ```
 
-The CLI normalizes fields across heterogeneous backend response variants:
-- `title`: normalized from `originalTitle`, `zhTitle`, or `enTitle`
-- `abstract`: normalized from `originalAbstract`, `zhAbstract`, or `enAbstract`
-- `keywords`: normalized from `originalKeywords`, `zhKeywords`, or `enKeywords`
-- `container_title`: normalized from `container.title`
-- `cited_count`: normalized from `citedCount`
-- `filepath`: normalized from `localAddress` or `pdf.downloadUrl`
-- `authors`: normalized from author object array to string array of author names
+CLI 会统一以下字段：
 
-Before output, the CLI deletes raw, bulky, or redundant fields:
+- `title`：从 `title`、`originalTitle`、`zhTitle` 或 `enTitle` 获取。
+- `abstract`：从 `abstract`、`originalAbstract`、`zhAbstract` 或 `enAbstract` 获取。
+- `keywords`：从 `keywords`、`originalKeywords`、`zhKeywords` 或 `enKeywords` 获取。
+- `authors`：作者对象数组转换为作者姓名数组。
+- `container_title`：从 `container.title` 获取。
+- `cited_count`：从 `citedCount` 获取。
+- `filepath`：从 `localAddress` 或 `pdf.downloadUrl` 获取。
+
+输出前删除以下原始或冗余字段：
 
 ```text
 zhTitle, enAbstract, zhKeywords, citedDocs, zhAbstract, references, highLight, aiOverview, aiGuideReading, aiFixQuestion
 ```
 
-Natural-language output additionally:
+自然语言检索会将原始 `id` 复制为 `arxiv_id`，并把 `id` 替换为从 1 开始的结果序号。空结果返回 `[]`。结构化检索保留后端响应封装，自然语言检索返回标准化结果数组。
 
-- converts author objects to an array of author names when possible;
-- copies the original `id` to `arxiv_id`;
-- replaces `id` with a one-based result index;
-- returns `[]` for an empty or missing result list.
+## 错误、配额和运行规则
 
-The CLI preserves the backend response envelope for structured search and returns the normalized list for natural-language search. It returns `download_path` for full-text link generation.
+- 缺少 `YK_ACADEMIC_API_KEY` 时，显示 PowerShell、CMD、Linux 和 macOS 配置说明，不发起网络请求。
+- Key 无效时，提示配置有效的环境变量。
+- 每日检索配额耗尽时，停止继续请求并提示配额不足。
+- 全文链接生成是否计入配额由服务端策略决定，CLI 不维护本地配额计数。
+- HTTP 错误、JSON 格式错误或响应缺少 `download_path` 时，报告错误，不伪造结果或链接。
 
-## Errors, Quotas, and Operational Rules
-
-- Missing `YK_ACADEMIC_API_KEY`: show setup commands for PowerShell, CMD, Linux, and macOS; do not call the API.
-- Invalid key: report authentication failure and ask for a valid environment variable value.
-- Search quota exhausted: stop search retries and report that the daily quota is exhausted.
-- Full-text link generation is detail/link generation and does not consume search quota under the service contract.
-- HTTP failures, malformed JSON, and missing `download_path` are errors; never fabricate a result or link.
-- A five-key allocation with 5,000 searches per key per day is a backend/gateway provisioning rule, not a Skill setting. The CLI has no local quota counter.
-
-Backend deployment documentation: <https://claude.newacademic.net/docs/>.
+后端部署文档：<https://claude.newacademic.net/docs/>。
