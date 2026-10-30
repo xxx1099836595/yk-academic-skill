@@ -52,7 +52,7 @@ YK 学术文献检索 Skill 包，包含：
 - `literature_search`
 - `download_full_text`
 
-MCP 服务本身不使用 Nacos。默认后端地址由包内部使用
+默认后端地址由包内部使用
 `https://apisass.newacademic.net`，检索接口为
 `/gateway/research/literature/v2/tradition/search`；如确实需要切换后端，可额外设置
 `YK_ACADEMIC_API_BASE`，但它不是 MCP 服务地址。
@@ -124,7 +124,9 @@ npx skills remove yk-academic-search -y
 
 ## CLI 调用
 
-Skill 使用命令行脚本直接调用后端接口，不调用 MCP。后端使用线上网关，API Key 通过环境变量注入。
+Skill 使用命令行脚本直接调用后端接口。后端使用线上网关，API Key 优先从环境变量注入。
+
+该 Skill 面向专业学术检索，覆盖 OpenAlex、arXiv、PubMed、Web of Science（WoS）以及知网、万方、维普等中文数据库。
 
 - 默认后端：`https://apisass.newacademic.net`
 - 检索接口：`/gateway/research/literature/v2/tradition/search`

@@ -47,7 +47,7 @@ test("package default npx command starts the MCP binary", () => {
   );
 });
 
-test("MCP literature_search maps structured search to the backend without Nacos", async () => {
+test("MCP literature_search maps structured search to the backend", async () => {
   process.env.YK_ACADEMIC_API_KEY = "test-key";
   process.env.YK_ACADEMIC_API_BASE = "http://example.test";
   let request;

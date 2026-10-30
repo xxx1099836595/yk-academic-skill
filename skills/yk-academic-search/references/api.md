@@ -1,6 +1,8 @@
 # YK 学术检索 API 参考
 
-本文档说明 Node CLI 直接调用的 HTTP 接口，以及 CLI 参数到 API 请求体的完整映射。Skill 不调用 MCP、Nacos 或服务发现。
+本文档说明 Node CLI 直接调用的 HTTP 接口，以及 CLI 参数到 API 请求体的完整映射。
+
+该 Skill 面向专业学术检索场景，覆盖 OpenAlex、arXiv、PubMed、Web of Science（WoS）以及知网、万方、维普等中文数据库。
 
 ## 连接与认证
 
@@ -16,7 +18,7 @@ CLI 按以下优先级选择 API 地址：
 2. `YK_ACADEMIC_API_BASE`
 3. `https://apisass.newacademic.net`
 
-API Key 通过 `YK_ACADEMIC_API_KEY` 环境变量提供，仓库不内置生产 Key。
+API Key 优先从 `YK_ACADEMIC_API_KEY` 环境变量读取，生产环境应预先配置该变量。仓库不内置生产 Key；只有环境变量没有值时，才检查其他显式配置。
 
 CLI 发送以下请求头：
 

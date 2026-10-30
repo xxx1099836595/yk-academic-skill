@@ -131,7 +131,7 @@ export async function startMcpServer() {
     {
       capabilities: { tools: {} },
       instructions:
-        "提供学术文献检索和全文下载链接工具。服务通过 stdio 启动，不使用 Nacos；API Key 从 YK_ACADEMIC_API_KEY 环境变量读取。"
+        "提供专业学术文献检索和全文下载链接工具，覆盖 OpenAlex、arXiv、PubMed、Web of Science（WoS）及中文数据库。API Key 优先从 YK_ACADEMIC_API_KEY 环境变量读取。"
     }
   );
 

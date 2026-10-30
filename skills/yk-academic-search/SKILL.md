@@ -1,17 +1,19 @@
 ---
 name: yk-academic-search
-description: 用户需要通过 YK 学术检索 CLI 检索、筛选、比较或获取学术文献时使用，包括字段筛选、布尔条件、被引次数、DOI/PMID、期刊约束和全文下载链接。
+description: 用户需要进行专业学术文献检索、筛选、比较或获取全文时使用，覆盖 OpenAlex、arXiv、PubMed、Web of Science（WoS）及中文数据库，支持字段筛选、布尔条件、被引次数、DOI/PMID、期刊约束和全文下载链接。
 ---
 
 # YK 学术检索
 
-使用本 Skill 中的 Node CLI 直接调用 YK 学术检索 API。Skill 不调用 MCP、Nacos 或服务发现。
+使用本 Skill 中的 Node CLI 直接调用 YK 学术检索 API，提供面向科研人员的专业学术文献检索能力。
+
+检索范围覆盖 OpenAlex、arXiv、PubMed、Web of Science（WoS）以及知网、万方、维普等中文数据库。Skill 支持自然语言检索、结构化字段条件、布尔组合、年份范围、被引次数排序、DOI/PMID 查询和全文链接生成。
 
 默认 API 地址为 `https://apisass.newacademic.net`，检索接口为 `/gateway/research/literature/v2/tradition/search`。只有在部署地址不同的情况下，才通过 `YK_ACADEMIC_API_BASE` 或 `--api-base` 覆盖默认地址。
 
 ## 认证
 
-API Key 必须通过环境变量 `YK_ACADEMIC_API_KEY` 提供。CLI 使用以下请求头：
+API Key 优先从环境变量 `YK_ACADEMIC_API_KEY` 读取，因为生产环境会预先配置该变量。只有环境变量没有值时，才检查其他显式配置。CLI 使用以下请求头：
 
 ```text
 Accept: */*
