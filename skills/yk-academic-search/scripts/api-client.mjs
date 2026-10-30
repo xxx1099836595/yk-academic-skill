@@ -1,6 +1,7 @@
-export const DEFAULT_API_BASE = "http://192.168.30.155:8099";
-export let DEFAULT_API_KEY = "7RTKfyq9aScTNXPB0aoaBQbBFkLneZXkg2ZFPFIZ4KU";
-export const TRADITION_SEARCH_PATH = "/research/literature/v2/tradition/search";
+export const DEFAULT_API_BASE = "https://apisass.newacademic.net";
+export let DEFAULT_API_KEY = "";
+export const TRADITION_SEARCH_PATH = "/gateway/research/literature/v2/tradition/search";
+export const FULLTEXT_PATH = "/gateway/GenerateDownloadAddress/";
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export function setDefaultApiKey(key) {
@@ -33,7 +34,7 @@ Usage:
   yk-academic-search fulltext --filepath <path> [full-text options]
 
 Environment:
-  YK_ACADEMIC_API_KEY    API key used for Authorization: Bearer <key> (default provided)
+  YK_ACADEMIC_API_KEY    API key used for Authorization: Bearer <key> (required)
   YK_ACADEMIC_API_BASE   Optional backend base URL override
 
 Options:
@@ -41,7 +42,7 @@ Options:
   --query <text>       Natural-language search text
   --conditions <json>  Structured condition node array
   --size <number>      Natural-language result count, default 15, range 1-50
-  --database <name>    Natural-language database, chinese or english; default chinese
+  --database <name>    Chinese database selector, chinese or zh; default chinese
   --start-year <year>  Natural-language lower year bound; default current year - 5
   --end-year <year>    Natural-language upper year bound; default current year
   --page-index <n>     Structured page number starting at 1; default 1
@@ -89,7 +90,7 @@ export async function searchLiterature(parsed) {
 
 export async function generateFullTextLink(parsed) {
   const args = buildFullTextArgs(parsed);
-  const body = await postJson("/GenerateDownloadAddress/", {
+  const body = await postJson(FULLTEXT_PATH, {
     Type: args.file_type,
     path: args.filepath,
     day: args.day,
@@ -187,13 +188,12 @@ export function buildQueryConditions(args) {
   }
 
   const database = (args.database || "chinese").trim().toLowerCase();
-  if (database === "chinese" || database === "zh") {
-    conditions.push({ action: "operation", operator: "and" });
-    conditions.push({ action: "condition", exp: { field: "language", symbol: "==", value: "zh" } });
-  } else if (database === "english" || database === "en") {
-    conditions.push({ action: "operation", operator: "and" });
-    conditions.push({ action: "condition", exp: { field: "language", symbol: "==", value: "en" } });
+  if (database !== "chinese" && database !== "zh") {
+    throw new Error("本 Skill 仅支持中文语种，请将 --database 设置为 chinese 或 zh。");
   }
+
+  conditions.push({ action: "operation", operator: "and" });
+  conditions.push({ action: "condition", exp: { field: "language", symbol: "==", value: "zh" } });
 
   return conditions;
 }
@@ -216,13 +216,59 @@ async function querySearch(args, parsed) {
 
 async function traditionalSearch(args, parsed) {
   validateTraditionalArgs(args);
+  const conditions = ensureChineseConditions(args.conditions || []);
   const body = await postJson(TRADITION_SEARCH_PATH, {
     pageIndex: args.page_index,
     pageSize: args.page_size,
     sort: { field: args.sort_field, order: args.sort_order },
-    conditions: args.conditions || []
+    conditions
   }, parsed);
   return normalizeTraditionalResponse(body);
+}
+
+function ensureChineseConditions(conditions) {
+  const languageConditions = [];
+  collectLanguageConditions(conditions, languageConditions);
+
+  for (const condition of languageConditions) {
+    const expression = condition.exp;
+    if (expression.symbol !== "==" || String(expression.value).toLowerCase() !== "zh") {
+      throw new Error("本 Skill 仅支持中文语种，language 条件必须是 language == zh。");
+    }
+  }
+
+  if (conditions.some((node) =>
+    node?.action === "condition" &&
+    node.exp?.field === "language" &&
+    node.exp?.symbol === "==" &&
+    String(node.exp.value).toLowerCase() === "zh"
+  )) {
+    return conditions;
+  }
+
+  const languageCondition = {
+    action: "condition",
+    exp: { field: "language", symbol: "==", value: "zh" }
+  };
+  if (conditions.length === 0) {
+    return [languageCondition];
+  }
+  return [
+    ...conditions,
+    { action: "operation", operator: "and" },
+    languageCondition
+  ];
+}
+
+function collectLanguageConditions(nodes, result) {
+  for (const node of nodes) {
+    if (node?.action === "condition" && node.exp?.field === "language") {
+      result.push(node);
+    }
+    if (node?.action === "bracket" && Array.isArray(node.conditions)) {
+      collectLanguageConditions(node.conditions, result);
+    }
+  }
 }
 
 export function resolveUrl(base, path) {

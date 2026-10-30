@@ -7,16 +7,16 @@ This reference describes the direct HTTP calls made by the Node CLI and the exac
 Default API base:
 
 ```text
-http://192.168.30.155:8099
+https://apisass.newacademic.net
 ```
 
 The CLI chooses the base URL in this order:
 
 1. `--api-base <url>`
 2. `YK_ACADEMIC_API_BASE`
-3. `http://192.168.30.155:8099`
+3. `https://apisass.newacademic.net`
 
-The default API key (`7RTKfyq9aScTNXPB0aoaBQbBFkLneZXkg2ZFPFIZ4KU`) is built-in. You can override it via the `YK_ACADEMIC_API_KEY` environment variable.
+The API key is supplied through the `YK_ACADEMIC_API_KEY` environment variable. The repository does not embed a production key.
 
 The CLI sends HTTP requests with the following standard headers:
 
@@ -76,14 +76,14 @@ yk-academic-search search `
 |---|---|---:|---|
 | `--query` | string | required | Sent as the search text. |
 | `--size` | integer | `15` | Clamped to `1`-`50`; sent as `pageSize`. |
-| `--database` | string | `chinese` | Exact value `chinese` maps to language `zh`; every other value maps to `en`. |
+| `--database` | string | `chinese` | Chinese-only selector. `chinese` and `zh` map to `language == "zh"`; other values are rejected. |
 | `--start-year` | integer | current year - 5 | Adds `year >=` to the generated conditions. |
 | `--end-year` | integer | current year | Adds `year <=` to the generated conditions. |
 
 The CLI maps natural-language queries into structured field conditions and sends them directly to:
 
 ```text
-POST /research/literature/v2/tradition/search
+POST /gateway/research/literature/v2/tradition/search
 Content-Type: application/json
 Accept: */*
 Accept-Encoding: gzip, deflate, br
@@ -94,7 +94,7 @@ Query mapping:
 - Matches `query` across `title`, `keyword`, and `abstract` using a bracketed `OR` group:
   `((title == query) OR (keyword == query) OR (abstract == query))`
 - Adds year boundaries: `year >= startYear AND year <= endYear`
-- Adds language restriction: `language == "zh"` (or `"en"`)
+- Adds the fixed language restriction: `language == "zh"`
 
 Request body:
 
@@ -142,7 +142,7 @@ yk-academic-search search `
 Backend endpoint:
 
 ```text
-POST /research/literature/v2/tradition/search
+POST /gateway/research/literature/v2/tradition/search
 Content-Type: application/json
 ```
 
@@ -155,6 +155,8 @@ CLI options map to this body:
 | `--sort-field` | `sort.field` | string | `score`; `score`, `cited_count`, `publish_date`, or `year`. |
 | `--sort-order` | `sort.order` | string | `desc`; `asc` or `desc`. |
 | `--conditions` | `conditions` | array | required; `[]` means no filter. Passed through as parsed JSON. |
+
+Structured search is Chinese-only. If the condition tree does not contain a language condition, the CLI appends `language == "zh"`. A language condition with any other value or operator is rejected.
 
 Request body:
 
@@ -254,7 +256,7 @@ The source contract lists exact operators above. Do not assume `like` is availab
 The endpoint creates a download URL from a backend file path. It does not upload a local file.
 
 ```text
-POST /GenerateDownloadAddress/
+POST /gateway/GenerateDownloadAddress/
 Content-Type: application/json
 ```
 

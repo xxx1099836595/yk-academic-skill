@@ -5,13 +5,13 @@ description: Use when the user asks to search, filter, compare, or retrieve acad
 
 # YK Academic Search
 
-Use the Node CLI in this package to call the YK academic API directly. This Skill does not call MCP, Nacos, or service discovery. The default API base is `http://192.168.30.155:8099`; override it with `YK_ACADEMIC_API_BASE` or `--api-base` when the deployment uses another address.
+Use the Node CLI in this package to call the YK academic API directly. The default API base is `https://apisass.newacademic.net`, and the search endpoint is `/gateway/research/literature/v2/tradition/search`. Override the base with `YK_ACADEMIC_API_BASE` or `--api-base` only when the deployment uses another address.
 
 ## Authentication
 
-The default API key (`7RTKfyq9aScTNXPB0aoaBQbBFkLneZXkg2ZFPFIZ4KU`) is built-in. You can override it via the `YK_ACADEMIC_API_KEY` environment variable. The CLI sends it as `Authorization: Bearer <key>` along with `Accept: */*` and `Accept-Encoding: gzip, deflate, br`.
+The API key must be provided through the `YK_ACADEMIC_API_KEY` environment variable. The CLI sends it as `Authorization: Bearer <key>` along with `Accept: */*`, `Accept-Encoding: gzip, deflate, br`, and `Content-Type: application/json`.
 
-If no key is configured and the default key is not present, configure it as follows:
+If no key is configured, configure it as follows:
 
 ```text
 请您先设置秘钥（YK_ACADEMIC_API_KEY）。
@@ -57,15 +57,15 @@ Options:
 |---|---|---:|---|
 | `--query` | string | required | Natural-language search text. |
 | `--size` | integer | `15` | Number of results; the CLI clamps it to `1`-`50`. |
-| `--database` | string | `chinese` | `chinese` sends language `zh`; `english` sends language `en`. |
+| `--database` | string | `chinese` | Chinese-only selector. Accepted values are `chinese` and `zh`; requests always send `language == "zh"`. |
 | `--start-year` | integer | current year - 5 | Adds `year >= start-year`. |
 | `--end-year` | integer | current year | Adds `year <= end-year`. |
 
-The CLI maps natural language queries into structured field conditions targeting `/research/literature/v2/tradition/search`:
+The CLI maps natural language queries into structured field conditions targeting `/gateway/research/literature/v2/tradition/search`:
 - Matches `query` across `title`, `keyword`, and `abstract` with bracketed `OR` grouping:
   `((title == query) OR (keyword == query) OR (abstract == query))`
 - Adds publication year bounds: `year >= startYear AND year <= endYear`
-- Adds language restriction: `language == "zh"` (or `"en"`)
+- Adds the fixed language restriction: `language == "zh"`
 
 The generated request body has this shape:
 
@@ -111,7 +111,7 @@ yk-academic-search search `
 Backend endpoint:
 
 ```text
-POST /research/literature/v2/tradition/search
+POST /gateway/research/literature/v2/tradition/search
 ```
 
 ```json
@@ -138,6 +138,8 @@ Options:
 | `--page-size` | integer | `20` | Page size; must be `1`-`100`. |
 | `--sort-field` | string | `score` | `score`, `cited_count`, `publish_date`, or `year`. |
 | `--sort-order` | string | `desc` | `asc` or `desc`. |
+
+Structured searches are also restricted to Chinese literature. The CLI appends `language == "zh"` when absent and rejects `language == "en"` or other non-Chinese language conditions.
 
 ## Condition Syntax
 
@@ -200,7 +202,7 @@ yk-academic-search fulltext `
 The CLI sends:
 
 ```text
-POST /GenerateDownloadAddress/
+POST /gateway/GenerateDownloadAddress/
 ```
 
 ```json

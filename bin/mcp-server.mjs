@@ -37,7 +37,8 @@ const TOOL_DEFINITIONS = [
         },
         database: {
           type: "string",
-          description: "Use chinese for Chinese results; other values use English."
+          enum: ["chinese", "zh"],
+          description: "Chinese-only search selector. Default is chinese."
         },
         start_year: {
           type: "integer",

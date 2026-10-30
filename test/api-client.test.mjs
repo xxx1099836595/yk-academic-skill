@@ -47,8 +47,9 @@ test("search stops locally with setup instructions when no API key is available"
   assert.equal(fetchCalls, 0);
 });
 
-test("search uses default API key when YK_ACADEMIC_API_KEY is not set", async () => {
+test("search uses the configured fallback API key when YK_ACADEMIC_API_KEY is not set", async () => {
   delete process.env.YK_ACADEMIC_API_KEY;
+  setDefaultApiKey("fallback-key");
   let request;
   globalThis.fetch = async (url, options) => {
     request = { url, options };
@@ -60,7 +61,7 @@ test("search uses default API key when YK_ACADEMIC_API_KEY is not set", async ()
   };
 
   await searchLiterature({ conditions: "[]" });
-  assert.equal(request.options.headers.authorization, `Bearer ${DEFAULT_API_KEY}`);
+  assert.equal(request.options.headers.authorization, "Bearer fallback-key");
   assert.equal(request.options.headers["accept"], "*/*");
   assert.equal(request.options.headers["accept-encoding"], "gzip, deflate, br");
 });
@@ -118,7 +119,7 @@ test("all documented structured-search options are mapped to the backend payload
 
   await searchLiterature(parsed);
 
-  assert.equal(request.url, "http://example.test/research/literature/v2/tradition/search");
+  assert.equal(request.url, "http://example.test/gateway/research/literature/v2/tradition/search");
   assert.equal(request.options.headers.authorization, "Bearer test-key");
   assert.equal(request.options.headers["content-type"], "application/json");
   assert.equal(request.options.headers["accept"], "*/*");
@@ -131,6 +132,11 @@ test("all documented structured-search options are mapped to the backend payload
       {
         action: "condition",
         exp: { field: "year", symbol: ">=", value: 2024 }
+      },
+      { action: "operation", operator: "and" },
+      {
+        action: "condition",
+        exp: { field: "language", symbol: "==", value: "zh" }
       }
     ]
   });
@@ -177,7 +183,7 @@ test("natural language query is mapped to traditional search conditions", async 
   ]);
 
   const result = await searchLiterature(parsed);
-  assert.equal(request.url, "http://192.168.30.155:8099/research/literature/v2/tradition/search");
+  assert.equal(request.url, "https://apisass.newacademic.net/gateway/research/literature/v2/tradition/search");
   assert.equal(Array.isArray(result), true);
   assert.equal(result.length, 1);
   assert.equal(result[0].title, "测试标题");
@@ -192,6 +198,58 @@ test("natural language query is mapped to traditional search conditions", async 
   assert.equal(body.sort.field, "score");
   assert.equal(body.sort.order, "desc");
   assert.equal(body.conditions.length, 7);
+  assert.deepEqual(body.conditions.at(-1), {
+    action: "condition",
+    exp: { field: "language", symbol: "==", value: "zh" }
+  });
+});
+
+test("structured search always adds the Chinese language condition", async () => {
+  process.env.YK_ACADEMIC_API_KEY = "test-key";
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ code: 0, data: { total: 0, list: [] } })
+    };
+  };
+
+  await searchLiterature({
+    conditions: "[]",
+    apiBase: "https://apisass.newacademic.net"
+  });
+
+  assert.equal(request.url, "https://apisass.newacademic.net/gateway/research/literature/v2/tradition/search");
+  assert.deepEqual(JSON.parse(request.options.body).conditions, [
+    {
+      action: "condition",
+      exp: { field: "language", symbol: "==", value: "zh" }
+    }
+  ]);
+});
+
+test("structured search rejects an English language condition", async () => {
+  process.env.YK_ACADEMIC_API_KEY = "test-key";
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error("fetch should not be called for English-only search");
+  };
+
+  await assert.rejects(
+    searchLiterature({
+      conditions: JSON.stringify([
+        {
+          action: "condition",
+          exp: { field: "language", symbol: "==", value: "en" }
+        }
+      ])
+    }),
+    /中文语种/
+  );
+  assert.equal(fetchCalls, 0);
 });
 
 test("help documents every CLI parameter group", () => {

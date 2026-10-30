@@ -80,7 +80,7 @@ test("MCP literature_search maps structured search to the backend without Nacos"
   });
 
   assert.equal(result.isError, false);
-  assert.equal(request.url, "http://example.test/research/literature/v2/tradition/search");
+  assert.equal(request.url, "http://example.test/gateway/research/literature/v2/tradition/search");
   assert.equal(request.options.headers.authorization, "Bearer test-key");
   assert.equal(request.options.headers["accept"], "*/*");
   assert.equal(request.options.headers["accept-encoding"], "gzip, deflate, br");
@@ -92,6 +92,11 @@ test("MCP literature_search maps structured search to the backend without Nacos"
       {
         action: "condition",
         exp: { field: "keyword", symbol: "==", value: "多模态大模型" }
+      },
+      { action: "operation", operator: "and" },
+      {
+        action: "condition",
+        exp: { field: "language", symbol: "==", value: "zh" }
       }
     ]
   });
@@ -120,7 +125,7 @@ test("MCP download_full_text returns the generated download path", async () => {
 
   assert.equal(result.isError, false);
   assert.match(result.content[0].text, /http:\/\/download\/link\.pdf/);
-  assert.equal(request.url, "http://example.test/GenerateDownloadAddress/");
+  assert.equal(request.url, "http://example.test/gateway/GenerateDownloadAddress/");
   assert.deepEqual(JSON.parse(request.options.body), {
     Type: "local",
     path: "reading/pdf/article.pdf",
