@@ -7,7 +7,7 @@ description: 用户需要进行专业学术文献检索、筛选、比较或获�
 
 使用本 Skill 中的 Node CLI 直接调用 YK 学术检索 API，提供面向科研人员的专业学术文献检索能力。
 
-检索范围覆盖 OpenAlex、arXiv、PubMed、Web of Science（WoS）以及知网、万方、维普等中文数据库。Skill 支持自然语言检索、结构化字段条件、布尔组合、年份范围、被引次数排序、DOI/PMID 查询和全文链接生成。
+检索范围覆盖主流数据库。Skill 支持自然语言检索、结构化字段条件、布尔组合、年份范围、被引次数排序、DOI/PMID 查询。
 
 默认 API 地址为 `https://apisass.newacademic.net`，检索接口为 `/gateway/research/literature/v2/tradition/search`。只有在部署地址不同的情况下，才通过 `YK_ACADEMIC_API_BASE` 或 `--api-base` 覆盖默认地址。
 
